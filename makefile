@@ -1,0 +1,9 @@
+OBJS = tokenizer.o parser.o compiler.o
+compiler: $(OBJS)
+	cc -o compiler $(OBJS)
+
+$(OBJS): compiler.h
+
+.PHONY: clean
+clean:
+	rm 
