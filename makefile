@@ -6,4 +6,4 @@ $(OBJS): compiler.h
 
 .PHONY: clean
 clean:
-	rm 
+	rm -f *.o

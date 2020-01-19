@@ -11,5 +11,16 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     tokenize(fp);
-    print_token();
+    /* debug tokenizer */
+    // print_token();
+
+    cur_token = token_list;
+    NodeList *node_list = parse();
+
+    /* debug parser */
+    while(node_list) {
+        print_tree(node_list->tree);
+        node_list = node_list->next;
+    }
+
 }

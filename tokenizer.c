@@ -1,11 +1,4 @@
-#include <stdio.h>
 #include "compiler.h"
-#include <string.h>
-#include <stdlib.h>
-
-Token *token_list = NULL;
-Token *cur_token = NULL;
-
 
 /* warning: op need to be sorted by letters */
 /* check more letters op first */
@@ -128,7 +121,7 @@ void print_token() {
             case TK_CONSTANT:
                 printf("constant: ");
                 break;
-            case TK_LITERAL:
+            case TK_STRING:
                 printf("string literal: ");
                 break;
             case TK_KEYWORD:
@@ -137,6 +130,9 @@ void print_token() {
             case TK_IDENT:
                 printf("ident: ");
                 break;
+            case TK_EOF:
+                printf("eof\n");
+                return;
         }
         printf("%s %d\n", it->str, it->len);
         it = it->next;
@@ -203,7 +199,7 @@ int string_literal(char *str, int base_loc, int str_len) {
             break;
         }
     }
-    add_token(str + base_loc, loc - base_loc, TK_LITERAL);
+    add_token(str + base_loc, loc - base_loc, TK_STRING);
     return loc;
 }
 
@@ -249,5 +245,6 @@ void tokenize(FILE *fp) {
             cur_loc = punc(str, cur_loc, str_len);
         }
     }
+    add_token("", 0, TK_EOF);
 }
 
