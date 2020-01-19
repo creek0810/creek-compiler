@@ -96,3 +96,6 @@ Token *cur_token;
 
 void tokenize(FILE*);
 NodeList *parse();
+
+/* code gen */
+void codegen(NodeList*);

@@ -203,9 +203,9 @@ Node *logic_and();
 Node *inclusive_or();
 Node *exclusive_or();
 Node *and_expr();
-Node *equality();
-Node *relational();
-Node *shift();
+Node *equality(); // ok
+Node *relational(); // ok
+Node *shift(); // ok
 Node *additive();
 Node *multiplicative();
 Node *unary();
@@ -215,6 +215,7 @@ Node *primary();
 
 
 /* definition */
+
 /*
 <primary-expression> ::= <identifier>
                        | <constant> incomplete
@@ -231,6 +232,7 @@ Node *primary() {
     }
     return cur_node;
 }
+
 /*
 <postfix-expression> ::= <primary-expression> ok
                        | <postfix-expression> [ <expression> ]
@@ -330,7 +332,7 @@ Node *additive() {
     return cur_node;
 }
 
-/*
+/* codegen ok
 <shift-expression> ::= <additive-expression> ok
                      | <shift-expression> << <additive-expression> ok
                      | <shift-expression> >> <additive-expression> ok
@@ -349,7 +351,7 @@ Node *shift() {
     return cur_node;
 }
 
-/*
+/* codegen ok
 <relational-expression> ::= <shift-expression> ok
                           | <relational-expression> < <shift-expression> ok
                           | <relational-expression> > <shift-expression> ok
@@ -373,7 +375,8 @@ Node *relational() {
     }
     return cur_node;
 }
-/*
+
+/* codegen ok
 <equality-expression> ::= <relational-expression> ok
                         | <equality-expression> == <relational-expression> ok
                         | <equality-expression> != <relational-expression> ok
