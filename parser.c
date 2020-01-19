@@ -3,7 +3,7 @@
 /* help function */
 void print_tree(Node *cur_node) {
     switch(cur_node->type) {
-        // constant
+        /* constant */
         case ND_INT:
             printf("<int>");
             printf("%d", cur_node->extend.val);
@@ -105,18 +105,45 @@ void print_tree(Node *cur_node) {
             print_tree(cur_node->extend.binode.rhs);
             printf("</logic_or>\n");
             break;
-        case ND_INCLUSIVE_OR:
-            printf("<inclusive_or>\n");
+        case ND_BIT_OR:
+            printf("<bit_or>\n");
             print_tree(cur_node->extend.binode.lhs);
             print_tree(cur_node->extend.binode.rhs);
-            printf("</inclusive_or>\n");
+            printf("</bit_or>\n");
             break;
-        case ND_EXCLUSIVE_OR:
-            printf("<inclusive_or>\n");
+        case ND_BIT_XOR:
+            printf("<bit_xor>\n");
             print_tree(cur_node->extend.binode.lhs);
             print_tree(cur_node->extend.binode.rhs);
-            printf("</inclusive_or>\n");
+            printf("</bit_xor>\n");
             break;
+        /* ternary op */
+        case ND_IF:
+            printf("<if>\n");
+            printf("<condition>\n");
+            print_tree(cur_node->extend.ternode.condition);
+            printf("</condition>\n");
+            printf("<if_true>\n");
+            print_tree(cur_node->extend.ternode.if_stmt);
+            printf("</if_true>\n");
+            printf("<if_false>\n");
+            print_tree(cur_node->extend.ternode.else_stmt);
+            printf("</if_false>\n");
+            printf("</if>\n");
+            break;
+        /* special */
+        case ND_BLOCK: {
+            printf("<block>\n");
+            NodeList *cur_node_list = cur_node->extend.stmts;
+            while(cur_node_list) {
+                printf("<stmt>\n");
+                print_tree(cur_node_list->tree);
+                printf("</stmt>\n");
+                cur_node_list = cur_node_list->next;
+            }
+            printf("</block>\n");
+            break;
+        }
         default:
             printf("print tree function has not defined %d", cur_node->type);
     }
@@ -193,16 +220,36 @@ Node *add_node_bi_op(NodeType type, Node *lhs, Node *rhs){
     return new_node;
 }
 
+Node *add_node_ter_op(Node *condition_expr, Node *if_stmt, Node *else_stmt) {
+    Node *new_node = calloc(1, sizeof(Node));
+    new_node->type = ND_IF;
+    new_node->extend.ternode.condition = condition_expr;
+    new_node->extend.ternode.if_stmt = if_stmt;
+    new_node->extend.ternode.else_stmt = else_stmt;
+    return new_node;
+}
+
+Node *add_node_block(NodeList *stmts){
+    Node *new_node = calloc(1, sizeof(Node));
+    new_node->type = ND_BLOCK;
+    new_node->extend.stmts = stmts;
+    return new_node;
+}
+
 /* parse function */
+Node *stmt();
+NodeList *compound_stmt();
+Node *declaration();
+Node *direct_declarator();
 Node *expr_stmt();
 Node *expr();
 Node *assign();
 Node *condition();
 Node *logic_or();
 Node *logic_and();
-Node *inclusive_or();
-Node *exclusive_or();
-Node *and_expr();
+Node *inclusive_or(); // ok
+Node *exclusive_or(); // ok
+Node *and_expr(); // ok
 Node *equality(); // ok
 Node *relational(); // ok
 Node *shift(); // ok
@@ -395,7 +442,7 @@ Node *equality() {
     return cur_node;
 }
 
-/*
+/* codegen ok
 <and-expression> ::= <equality-expression> ok
                    | <and-expression> & <equality-expression> ok
 */
@@ -411,7 +458,7 @@ Node *and_expr() {
     return cur_node;
 }
 
-/*
+/* codegen ok
 <exclusive-or-expression> ::= <and-expression> ok
                             | <exclusive-or-expression> ^ <and-expression> ok
 */
@@ -419,7 +466,7 @@ Node *exclusive_or() {
     Node *cur_node = and_expr();
     while(true) {
         if(consume_op("^")) {
-            cur_node = add_node_bi_op(ND_EXCLUSIVE_OR, cur_node, and_expr());
+            cur_node = add_node_bi_op(ND_BIT_XOR, cur_node, and_expr());
         } else {
             break;
         }
@@ -427,7 +474,7 @@ Node *exclusive_or() {
     return cur_node;
 }
 
-/*
+/* codegen ok
 <inclusive-or-expression> ::= <exclusive-or-expression> ok
                             | <inclusive-or-expression> | <exclusive-or-expression> ok
 */
@@ -435,7 +482,7 @@ Node *inclusive_or() {
     Node *cur_node = exclusive_or();
     while(true) {
         if(consume_op("|")) {
-            cur_node = add_node_bi_op(ND_INCLUSIVE_OR, cur_node, exclusive_or());
+            cur_node = add_node_bi_op(ND_BIT_OR, cur_node, exclusive_or());
         } else {
             break;
         }
@@ -477,10 +524,17 @@ Node *logic_or() {
 
 /*
 <conditional-expression> ::= <logical-or-expression> ok
-                           | <logical-or-expression> ? <expression> : <conditional-expression>
+                           | <logical-or-expression> ? <expression> : <conditional-expression> ok
 */
 Node *condition() {
-    return logic_or();
+    Node *cur_node = logic_or();
+    if(consume_op("?")) {
+        Node *if_stmt = expr();
+        consume_op(":");
+        Node *else_stmt = condition();
+        cur_node = add_node_ter_op(cur_node, if_stmt, else_stmt);
+    }
+    return cur_node;
 }
 
 /*
@@ -513,21 +567,59 @@ Node *expr_stmt() {
     return NULL;
 }
 
+/* <direct-declarator> ::= <identifier>
+                      | ( <declarator> )
+                      | <direct-declarator> [ {<constant-expression>}? ]
+                      | <direct-declarator> ( <parameter-type-list> )
+                      | <direct-declarator> ( {<identifier>}* )
+*/
+Node *direct_declarator() {
 
-NodeList *parse() {
+}
+
+/* <declarator> ::= {<pointer>}? <direct-declarator> */
+Node *declaration() {
+
+}
+
+/*
+<compound-statement> ::= { {<declaration>}* {<statement>}* }
+*/
+NodeList *compound_stmt() {
+    // TODO: support declaration
+    /* warning: "{" has been consumed at stmt stage */
     NodeList *node_list = NULL;
     NodeList *cur_node;
-    while(cur_token->type != TK_EOF) {
+    while(!consume_op("}")) {
         if(!node_list) {
             node_list = calloc(1, sizeof(NodeList));
             cur_node = node_list;
-            cur_node->tree = expr_stmt();
+            cur_node->tree = stmt();
         } else {
             NodeList *new_node = calloc(1, sizeof(NodeList));
-            new_node->tree = expr_stmt();
+            new_node->tree = stmt();
             cur_node->next = new_node;
             cur_node = new_node;
         }
     }
     return node_list;
+}
+
+/*
+<statement> ::= <labeled-statement>
+              | <expression-statement> ok
+              | <compound-statement> ok
+              | <selection-statement>
+              | <iteration-statement>
+              | <jump-statement>
+*/
+Node *stmt() {
+    if(consume_op("{")) {
+        return add_node_block(compound_stmt());
+    }
+    return expr_stmt();
+}
+
+Node *parse() {
+    return stmt();
 }

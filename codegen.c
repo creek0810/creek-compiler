@@ -76,6 +76,19 @@ void gen(Node *cur_node) {
             printf("  idiv rdi\n");
             printf("  mov rax, rdx\n");
             break;
+        // bit op
+        case ND_BIT_AND:
+            normal_pop();
+            printf("  and rax, rdi\n");
+            break;
+        case ND_BIT_OR:
+            normal_pop();
+            printf("  or rax, rdi\n");
+            break;
+        case ND_BIT_XOR:
+            normal_pop();
+            printf("  xor rax, rdi\n");
+            break;
     }
     printf("  push rax\n");
 }

@@ -15,14 +15,10 @@ int main(int argc, char *argv[]) {
     // print_token();
 
     cur_token = token_list;
-    NodeList *node_list = parse();
+    Node *node = parse();
 
     /* debug parser */
-    /*
-    while(node_list) {
-        print_tree(node_list->tree);
-        node_list = node_list->next;
-    }
-    */
-   codegen(node_list);
+    // print_tree(node);
+
+    codegen(node_list);
 }

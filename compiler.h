@@ -25,6 +25,7 @@ struct Token {
 
 // parser.c
 
+typedef struct TerNode TerNode;
 typedef struct BiNode BiNode;
 typedef struct Node Node;
 typedef enum NodeType NodeType;
@@ -35,14 +36,21 @@ struct BiNode {
     Node *lhs, *rhs;
 };
 
+struct TerNode {
+    Node *condition, *if_stmt, *else_stmt;
+};
+
+
 union NodeExtend{
 	int val; // ND_INT
-    Node *expr; // * &
+    Node *expr; // unary operation (* &)
     BiNode binode; // bi operation
+    TerNode ternode; // ter operation(if else)
+    NodeList *stmts; // compound stmt
 };
 
 enum NodeType {
-    // constant
+    /* constant */
     ND_INT,
     /* unary op */
     ND_BIT_NOT, // ~
@@ -60,10 +68,14 @@ enum NodeType {
     ND_LSHIFT, // <<
     ND_RSHIFT, // >>
     ND_BIT_AND, // &
+    ND_BIT_OR, // |
+    ND_BIT_XOR, // ^
     ND_LOGIC_AND, // &&
     ND_LOGIC_OR, // ||
-    ND_INCLUSIVE_OR, // |
-    ND_EXCLUSIVE_OR, // ^
+    /* ter op*/
+    ND_IF,
+    /* special */
+    ND_BLOCK,
     /* assign op node */
     ND_ASSIGN,
     ND_MUL_ASSIGN,
@@ -95,7 +107,7 @@ Token *cur_token;
 
 
 void tokenize(FILE*);
-NodeList *parse();
+Node *parse();
 
 /* code gen */
 void codegen(NodeList*);
