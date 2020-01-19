@@ -61,6 +61,21 @@ void gen(Node *cur_node) {
             normal_pop();
             printf("  sub rax, rdi\n");
             break;
+        case ND_MUL:
+            normal_pop();
+            printf("  imul rax, rdi\n");
+            break;
+        case ND_DIV:
+            normal_pop();
+            printf("  cqo\n");
+            printf("  idiv rdi\n");
+            break;
+        case ND_MOD:
+            normal_pop();
+            printf("  cqo\n");
+            printf("  idiv rdi\n");
+            printf("  mov rax, rdx\n");
+            break;
     }
     printf("  push rax\n");
 }

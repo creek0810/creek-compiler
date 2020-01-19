@@ -15,6 +15,16 @@ def test_arithmetic(compiler):
     assert result == 15
     result = compile_and_run("10-4;")
     assert result == 6
+    result = compile_and_run("5*10;")
+    assert result == 50
+    result = compile_and_run("20/10;")
+    assert result == 2
+    result = compile_and_run("10/10;")
+    assert result == 1
+    result = compile_and_run("10%2;")
+    assert result == 0
+    result = compile_and_run("11%2;")
+    assert result == 1
 
 
 def test_cmp(compiler):

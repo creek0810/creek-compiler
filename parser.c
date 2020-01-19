@@ -206,8 +206,8 @@ Node *and_expr();
 Node *equality(); // ok
 Node *relational(); // ok
 Node *shift(); // ok
-Node *additive();
-Node *multiplicative();
+Node *additive(); // ok
+Node *multiplicative(); // ok
 Node *unary();
 Node *cast();
 Node *postfix();
@@ -291,7 +291,7 @@ Node *unary() {
     return postfix();
 }
 
-/*
+/* codegen ok
 <multiplicative-expression> ::= <cast-expression> ok
                               | <multiplicative-expression> * <cast-expression> ok
                               | <multiplicative-expression> / <cast-expression> ok
@@ -313,7 +313,7 @@ Node *multiplicative() {
     return cur_node;
 }
 
-/*
+/* codegen ok
 <additive-expression> ::= <multiplicative-expression> ok
                         | <additive-expression> + <multiplicative-expression> ok
                         | <additive-expression> - <multiplicative-expression> ok
