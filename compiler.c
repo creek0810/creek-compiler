@@ -20,5 +20,5 @@ int main(int argc, char *argv[]) {
     /* debug parser */
     // print_tree(node);
 
-    codegen(node_list);
+    codegen(node);
 }

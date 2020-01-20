@@ -47,6 +47,12 @@ def test_arithmetic(compiler):
     result = compile_and_run("11%2;")
     assert result == 1
 
+    # complex test
+    result = compile_and_run("2+5*2;")
+    assert result == 12
+    result = compile_and_run("(2+5)*2;")
+    assert result == 14
+
 
 def test_cmp(compiler):
     result = compile_and_run("8<2;")

@@ -43,7 +43,7 @@ struct TerNode {
 
 union NodeExtend{
 	int val; // ND_INT
-    Node *expr; // unary operation (* &)
+    Node *expr; // unary operation (* &), return
     BiNode binode; // bi operation
     TerNode ternode; // ter operation(if else)
     NodeList *stmts; // compound stmt
@@ -73,9 +73,13 @@ enum NodeType {
     ND_LOGIC_AND, // &&
     ND_LOGIC_OR, // ||
     /* ter op*/
-    ND_IF,
+    ND_IF, // cond ? if_stmt : else_stmt | if(...) ... else ...
     /* special */
-    ND_BLOCK,
+    ND_BLOCK, // {...}
+    /* jmp */
+    ND_BREAK, // break
+    ND_CONTINUE, // continue
+    ND_RETURN, // return
     /* assign op node */
     ND_ASSIGN,
     ND_MUL_ASSIGN,
@@ -110,4 +114,4 @@ void tokenize(FILE*);
 Node *parse();
 
 /* code gen */
-void codegen(NodeList*);
+void codegen(Node*);

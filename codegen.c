@@ -93,15 +93,12 @@ void gen(Node *cur_node) {
     printf("  push rax\n");
 }
 
-void codegen(NodeList *node_list) {
+void codegen(Node *node_list) {
     printf(".intel_syntax noprefix\n");
     printf(".globl _main\n");
     // TODO: support function
     printf("_main:\n");
-    while(node_list) {
-        gen(node_list->tree);
-        node_list = node_list->next;
-    }
+    gen(node_list);
     printf("  pop rax\n");
     printf("  ret\n");
 }

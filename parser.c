@@ -144,6 +144,17 @@ void print_tree(Node *cur_node) {
             printf("</block>\n");
             break;
         }
+        case ND_RETURN:
+            printf("<return>\n");
+            print_tree(cur_node->extend.expr);
+            printf("</return>\n");
+            break;
+        case ND_BREAK:
+            printf("<break></break>\n");
+            break;
+        case ND_CONTINUE:
+            printf("<continue></continue>\n");
+            break;
         default:
             printf("print tree function has not defined %d", cur_node->type);
     }
@@ -151,6 +162,23 @@ void print_tree(Node *cur_node) {
 
 void next_token() {
     cur_token = cur_token->next;
+}
+
+const int jump_keyword_len = 4;
+const char *jump_keyword[4] = {
+    "goto", "continue",
+    "break", "return"
+};
+bool next_is_jump() {
+    if(cur_token->type == TK_KEYWORD) {
+        for(int i=0; i<jump_keyword_len; i++) {
+            if(strlen(jump_keyword[i]) == cur_token->len &&
+               strncmp(cur_token->str, jump_keyword[i], cur_token->len) == 0) {
+                   return true;
+            }
+        }
+    }
+    return false;
 }
 
 bool consume_op(char *str) {
@@ -238,6 +266,7 @@ Node *add_node_block(NodeList *stmts){
 
 /* parse function */
 Node *stmt();
+Node *jump_stmt();
 NodeList *compound_stmt();
 Node *declaration();
 Node *direct_declarator();
@@ -267,7 +296,7 @@ Node *primary();
 <primary-expression> ::= <identifier>
                        | <constant> incomplete
                        | <string>
-                       | ( <expression> )
+                       | ( <expression> ) ok 
 */
 Node *primary() {
     Node *cur_node;
@@ -275,9 +304,14 @@ Node *primary() {
     if(cur_token->type == TK_CONSTANT) {
         //TODO: support different type
         cur_node = add_node_int(atoi(cur_token->str));
-        cur_token = cur_token->next;
+        next_token();
+        return cur_node;
     }
-    return cur_node;
+    if(consume_op("(")) {
+        cur_node = expr();
+        consume_op(")");
+        return cur_node;
+    }
 }
 
 /*
@@ -605,17 +639,41 @@ NodeList *compound_stmt() {
     return node_list;
 }
 
+/* <jump-statement> ::= goto <identifier> ;
+                   | continue ; ok
+                   | break ; ok
+                   | return {<expression>}? ; ok
+*/
+Node *jump_stmt() {
+    if(consume_keyword("goto")) {
+        consume_op(";");
+    } else if (consume_keyword("continue")) {
+        consume_op(";");
+        return add_node_unary(ND_CONTINUE, NULL);
+    } else if(consume_keyword("break")) {
+        consume_op(";");
+        return add_node_unary(ND_BREAK, NULL);
+    } else if(consume_keyword("return")) {
+        if(consume_op(";")) {
+            return add_node_unary(ND_RETURN, NULL);
+        }
+        return add_node_unary(ND_RETURN, expr());
+    }
+}
+
 /*
 <statement> ::= <labeled-statement>
               | <expression-statement> ok
               | <compound-statement> ok
               | <selection-statement>
               | <iteration-statement>
-              | <jump-statement>
+              | <jump-statement> ok
 */
 Node *stmt() {
     if(consume_op("{")) {
         return add_node_block(compound_stmt());
+    } else if(next_is_jump()) {
+        return jump_stmt();
     }
     return expr_stmt();
 }
