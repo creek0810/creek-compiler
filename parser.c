@@ -1,6 +1,71 @@
 #include "compiler.h"
 
+SymbolTable *cur_symbol_table = NULL;
+SymbolTable *symbol_table_head = NULL;
+
+int var_offset = 0;
+
+/*
+   (SymbolTable.inner)
+function -> scope 1 -> scope 3
+              | (SymbolTableList.next)
+              V
+            scope 2 -> scope 5
+*/
+/* symbol table function */
+SymbolTable *add_symbol_table() {
+    SymbolTable *new_table = calloc(1, sizeof(SymbolTable));
+    if(cur_symbol_table) {
+        SymbolTableList *new_table_list = calloc(1, sizeof(SymbolTableList));
+        new_table_list->table = new_table;
+        new_table_list->next = cur_symbol_table->inner;
+        cur_symbol_table->inner = new_table_list;
+    } else {
+        cur_symbol_table = new_table;
+        symbol_table_head = cur_symbol_table;
+    }
+    return new_table;
+}
+
+void add_var_to_symbol_table(char *name) {
+    printf("add %d\n", cur_symbol_table);
+    Var *new_var = calloc(1, sizeof(Var));
+    new_var->name = name;
+    new_var->offset = var_offset++;
+    new_var->next = cur_symbol_table->var;
+    cur_symbol_table->var = new_var;
+}
+
 /* help function */
+
+void print_var_list(Var *cur_var) {
+    while(cur_var) {
+        printf("<var>%s %d</var>\n", cur_var->name, cur_var->offset);
+        cur_var = cur_var->next;
+    }
+}
+
+void print_symbol_table(SymbolTable *cur_table) {
+    /*
+    (SymbolTable.inner)
+    function -> scope 1 -> scope 3
+                | (SymbolTableList.next)
+                V
+                scope 2 -> scope 5
+    */
+    if(!cur_table) {
+        return;
+    }
+    printf("<block>\n");
+    print_var_list(cur_table->var);
+    SymbolTableList *cur_it_table = cur_table->inner;
+    while(cur_it_table) {
+        print_symbol_table(cur_it_table->table);
+        cur_it_table = cur_it_table->next;
+    }
+    printf("</block>\n");
+}
+
 void print_tree(Node *cur_node) {
     switch(cur_node->type) {
         /* constant */
@@ -8,6 +73,11 @@ void print_tree(Node *cur_node) {
             printf("<int>");
             printf("%d", cur_node->extend.val);
             printf("</int>\n");
+            break;
+        case ND_IDENT:
+            printf("<ident>");
+            printf("%s", cur_node->extend.name);
+            printf("</ident>\n");
             break;
         /* unary op */
         case ND_BIT_NOT:
@@ -257,19 +327,29 @@ Node *add_node_ter_op(Node *condition_expr, Node *if_stmt, Node *else_stmt) {
     return new_node;
 }
 
-Node *add_node_block(NodeList *stmts){
+Node *add_node_block(NodeList *stmts) {
     Node *new_node = calloc(1, sizeof(Node));
     new_node->type = ND_BLOCK;
     new_node->extend.stmts = stmts;
     return new_node;
 }
 
+Node *add_node_ident(char *name) {
+    Node *new_node = calloc(1, sizeof(Node));
+    new_node->type = ND_IDENT;
+    new_node->extend.name = name;
+    return new_node;
+}
+
 /* parse function */
 Node *stmt();
 Node *jump_stmt();
-NodeList *compound_stmt();
+Node *compound_stmt();
 Node *declaration();
 Node *direct_declarator();
+Node *declaration_specifier();
+Node *declarator();
+Node *init_declarator();
 Node *expr_stmt();
 Node *expr();
 Node *assign();
@@ -601,42 +681,105 @@ Node *expr_stmt() {
     return NULL;
 }
 
-/* <direct-declarator> ::= <identifier>
+/* <direct-declarator> ::= <identifier> ok
                       | ( <declarator> )
                       | <direct-declarator> [ {<constant-expression>}? ]
                       | <direct-declarator> ( <parameter-type-list> )
                       | <direct-declarator> ( {<identifier>}* )
 */
 Node *direct_declarator() {
+    if(cur_token->type == TK_IDENT) {
+        Node *node = add_node_ident(cur_token->str);
+        next_token();
+        return node;
+    }
+}
+
+/*
+<declaration-specifier> ::= <storage-class-specifier>
+                          | <type-specifier>
+                          | <type-qualifier>
+*/
+Node *declaration_specifier() {
+    /*
+    <type-specifier> ::= void
+                   | char
+                   | short
+                   | int
+                   | long
+                   | float
+                   | double
+                   | signed
+                   | unsigned
+                   | <struct-or-union-specifier>
+                   | <enum-specifier>
+                   | <typedef-name>
+    */
+   // TODO: support another type
 
 }
 
 /* <declarator> ::= {<pointer>}? <direct-declarator> */
-Node *declaration() {
+Node *declarator() {
 
+    return direct_declarator();
 }
 
 /*
-<compound-statement> ::= { {<declaration>}* {<statement>}* }
+<init-declarator> ::= <declarator> ok
+                    | <declarator> = <initializer>
 */
-NodeList *compound_stmt() {
-    // TODO: support declaration
+Node *init_declarator() {
+
+    return declarator();
+}
+
+/* <declaration> ::=  {<declaration-specifier>}+ {<init-declarator>}* ; */
+Node *declaration() {
+    Node *node = NULL;
+    while(!consume_op(";")) {
+        if(strncmp(cur_token->str, "int", 3) != 0)
+            return node;
+        next_token();
+        node = init_declarator();
+    }
+    return node;
+}
+
+/*
+<compound-statement> ::= { {<declaration>}* {<statement>}*  ok}
+*/
+Node *compound_stmt() {
     /* warning: "{" has been consumed at stmt stage */
     NodeList *node_list = NULL;
     NodeList *cur_node;
+
+    // init symbol_table;
+    SymbolTable *symbol_table = add_symbol_table();
+    printf("init %d\n", symbol_table);
     while(!consume_op("}")) {
+        Node *decl_stmt = NULL;
+        // may be declaration or stmt
+        if((decl_stmt = declaration()) != NULL) {
+            // add to symbol table
+            cur_symbol_table = symbol_table;
+            add_var_to_symbol_table(decl_stmt->extend.name);
+        } else {
+            decl_stmt = stmt();
+        }
+        // append to node_list
         if(!node_list) {
             node_list = calloc(1, sizeof(NodeList));
             cur_node = node_list;
-            cur_node->tree = stmt();
+            cur_node->tree = decl_stmt;
         } else {
             NodeList *new_node = calloc(1, sizeof(NodeList));
-            new_node->tree = stmt();
+            new_node->tree = decl_stmt;
             cur_node->next = new_node;
             cur_node = new_node;
         }
     }
-    return node_list;
+    return add_node_block(node_list);
 }
 
 /* <jump-statement> ::= goto <identifier> ;
@@ -671,7 +814,7 @@ Node *jump_stmt() {
 */
 Node *stmt() {
     if(consume_op("{")) {
-        return add_node_block(compound_stmt());
+        return compound_stmt();
     } else if(next_is_jump()) {
         return jump_stmt();
     }

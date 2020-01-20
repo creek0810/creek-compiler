@@ -31,6 +31,32 @@ typedef struct Node Node;
 typedef enum NodeType NodeType;
 typedef union NodeExtend NodeExtend;
 typedef struct NodeList NodeList;
+typedef struct Var Var;
+typedef struct SymbolTableList SymbolTableList;
+typedef struct SymbolTable SymbolTable;
+
+/*
+   (SymbolTable.inner)
+function -> scope 1 -> scope 3
+              | (SymbolTableList.next)
+              V
+            scope 2 -> scope 5
+*/
+struct SymbolTableList {
+    SymbolTable *table;
+    SymbolTableList *next;
+};
+
+struct Var {
+    Var *next;
+    char *name;
+    int offset;
+};
+
+struct SymbolTable {
+    SymbolTableList *inner;
+    Var *var;
+};
 
 struct BiNode {
     Node *lhs, *rhs;
@@ -47,11 +73,14 @@ union NodeExtend{
     BiNode binode; // bi operation
     TerNode ternode; // ter operation(if else)
     NodeList *stmts; // compound stmt
+    char *name; // ident
 };
 
 enum NodeType {
     /* constant */
     ND_INT,
+    /* ident */
+    ND_IDENT,
     /* unary op */
     ND_BIT_NOT, // ~
     ND_LOGIC_NOT, // !
@@ -104,14 +133,19 @@ struct NodeList {
     NodeList *next;
 };
 
-
 // global
 Token *token_list;
 Token *cur_token;
 
+SymbolTable *cur_symbol_table;
+SymbolTable *symbol_table_head;
 
+/* main function */
 void tokenize(FILE*);
 Node *parse();
-
-/* code gen */
 void codegen(Node*);
+
+/* debug function */
+void print_token();
+void print_tree(Node*);
+void print_symbol_table(SymbolTable*);

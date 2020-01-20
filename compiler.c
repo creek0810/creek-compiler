@@ -19,6 +19,8 @@ int main(int argc, char *argv[]) {
 
     /* debug parser */
     // print_tree(node);
+    // printf("-------\n", symbol_table_head);
+    // print_symbol_table(symbol_table_head);
 
     codegen(node);
 }
