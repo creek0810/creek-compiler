@@ -13,6 +13,17 @@ void shift_pop() {
     printf("  pop rax\n");
 }
 
+void logic_pop() {
+    // b to logic
+    printf("  pop rdx\n");
+    printf("  cmp rdx, 0\n");
+    printf("  setne dl\n");
+    // a to logic
+    printf("  pop rax\n");
+    printf("  cmp rax, 0\n");
+    printf("  setne al\n");
+}
+
 /* gen function */
 void gen(Node *cur_node) {
     // declare
@@ -117,6 +128,15 @@ void gen(Node *cur_node) {
         case ND_BIT_XOR:
             normal_pop();
             printf("  xor rax, rdi\n");
+            break;
+        // logic op
+        case ND_LOGIC_AND:
+            logic_pop();
+            printf("  and rax, rdx\n");
+            break;
+        case ND_LOGIC_OR:
+            logic_pop();
+            printf("  or rax, rdx\n");
             break;
     }
     printf("  push rax\n");

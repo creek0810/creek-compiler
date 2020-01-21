@@ -108,6 +108,12 @@ void print_tree(Node *cur_node) {
             printf("</logic_not>\n");
             break;
         /* bi op */
+        case ND_ASSIGN:
+            printf("<assign>\n");
+            print_tree(cur_node->extend.binode.lhs);
+            print_tree(cur_node->extend.binode.rhs);
+            printf("</assign>\n");
+            break;
         case ND_ADD:
             printf("<add>\n");
             print_tree(cur_node->extend.binode.lhs);
@@ -372,8 +378,8 @@ Node *expr_stmt();
 Node *expr();
 Node *assign();
 Node *condition();
-Node *logic_or();
-Node *logic_and();
+Node *logic_or(); // ok
+Node *logic_and(); // ok
 Node *inclusive_or(); // ok
 Node *exclusive_or(); // ok
 Node *and_expr(); // ok
@@ -629,7 +635,7 @@ Node *inclusive_or() {
     return cur_node;
 }
 
-/*
+/* codegen ok
 <logical-and-expression> ::= <inclusive-or-expression> ok
                            | <logical-and-expression> && <inclusive-or-expression> ok
 */
@@ -645,7 +651,7 @@ Node *logic_and() {
     return cur_node;
 }
 
-/*
+/* codegen ok
 <logical-or-expression> ::= <logical-and-expression> ok
                           | <logical-or-expression> || <logical-and-expression> ok
 */
@@ -682,6 +688,10 @@ Node *condition() {
 */
 Node *assign() {
     Node *cur_node = condition();
+    // TODO: support another assign op
+    if(consume_op("=")) {
+        cur_node = add_node_bi_op(ND_ASSIGN, cur_node, assign());
+    }
     return cur_node;
 }
 

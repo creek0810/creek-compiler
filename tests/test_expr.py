@@ -9,26 +9,46 @@ def compile_and_run(test_data):
     result = os.system("./test")
     return result >> 8
 
+
+def test_logic(compiler):
+    # and
+    result = compile_and_run("1&&2;")
+    assert result == 1
+    result = compile_and_run("1&&1;")
+    assert result == 1
+    result = compile_and_run("1&&0;")
+    assert result == 0
+    result = compile_and_run("0 && 0;")
+    assert result == 0
+    # or
+    result = compile_and_run("1||2;")
+    assert result == 1
+    result = compile_and_run("1||1;")
+    assert result == 1
+    result = compile_and_run("1||0;")
+    assert result == 1
+    result = compile_and_run("0||0;")
+    assert result == 0
+
+
 def test_bit(compiler):
     # and
-    result = compile_and_run("5&1;");
+    result = compile_and_run("5&1;")
     assert result == 1
-    result = compile_and_run("4&1;");
+    result = compile_and_run("4&1;")
     assert result == 0
-    result = compile_and_run("7&5;");
+    result = compile_and_run("7&5;")
     assert result == 5
     # or
-    result = compile_and_run("0|5;");
+    result = compile_and_run("0|5;")
     assert result == 5
-    result = compile_and_run("2|5;");
+    result = compile_and_run("2|5;")
     assert result == 7
     # xor
-    result = compile_and_run("2^5;");
+    result = compile_and_run("2^5;")
     assert result == 7
-    result = compile_and_run("7^5;");
+    result = compile_and_run("7^5;")
     assert result == 2
-
-
 
 
 def test_arithmetic(compiler):
