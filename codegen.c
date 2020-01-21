@@ -1,5 +1,7 @@
 #include "compiler.h"
 
+SymbolTable *gen_symbol_table;
+
 /* pop function */
 void normal_pop() {
     printf("  pop rdi\n");
@@ -13,9 +15,36 @@ void shift_pop() {
 
 /* gen function */
 void gen(Node *cur_node) {
+    // declare
+    // TODO: if has init stmt then do something
+    if(cur_node->type == ND_DECLARE) {
+        return;
+    }
     // constant should push
     if(cur_node->type == ND_INT) {
         printf("  push %d\n", cur_node->extend.val);
+        return;
+    }
+    // ident
+    if(cur_node->type == ND_IDENT) {
+        Var *cur_var = find_var(gen_symbol_table, cur_node->extend.name);
+        if(cur_var) {
+            printf("  offset %d\n", cur_var->offset);
+        } else {
+            printf("  not exist\n");
+            exit(1);
+        }
+        return;
+    }
+    // block node
+    if(cur_node->type == ND_BLOCK) {
+        gen_symbol_table = cur_node->extend.blocknode.symbol_table;
+        NodeList *cur_node_list = cur_node->extend.blocknode.stmts;
+        while(cur_node_list) {
+            gen(cur_node_list->tree);
+            cur_node_list = cur_node_list->next;
+        }
+        gen_symbol_table = cur_node->extend.blocknode.symbol_table->prev;
         return;
     }
     // bi operation

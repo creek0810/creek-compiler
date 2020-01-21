@@ -111,10 +111,8 @@ void add_token(char *str, int len, TokenType type) {
     }
 }
 
-void print_token() {
-    Token *it = token_list;
-    while(it) {
-        switch(it->type) {
+void print_cur_token(Token *it) {
+     switch(it->type) {
             case TK_PUNC:
                 printf("punc: ");
                 break;
@@ -135,6 +133,11 @@ void print_token() {
                 return;
         }
         printf("%s %d\n", it->str, it->len);
+}
+void print_token() {
+    Token *it = token_list;
+    while(it) {
+       print_cur_token(it);
         it = it->next;
     }
 }

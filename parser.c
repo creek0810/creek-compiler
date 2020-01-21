@@ -7,10 +7,12 @@ int var_offset = 0;
 
 /*
    (SymbolTable.inner)
+                    <-
 function -> scope 1 -> scope 3
-              | (SymbolTableList.next)
+         <-   | (SymbolTableList.next)
               V
             scope 2 -> scope 5
+                    <-
 */
 /* symbol table function */
 SymbolTable *add_symbol_table() {
@@ -20,6 +22,7 @@ SymbolTable *add_symbol_table() {
         new_table_list->table = new_table;
         new_table_list->next = cur_symbol_table->inner;
         cur_symbol_table->inner = new_table_list;
+        new_table->prev = cur_symbol_table;
     } else {
         cur_symbol_table = new_table;
         symbol_table_head = cur_symbol_table;
@@ -27,8 +30,22 @@ SymbolTable *add_symbol_table() {
     return new_table;
 }
 
+Var *find_var(SymbolTable *symbol_table, char *name) {
+    if(symbol_table == NULL) {
+        return NULL;
+    }
+    Var *cur_var = symbol_table->var;
+    while(cur_var) {
+        int name_len = strlen(cur_var->name);
+        if(name_len == strlen(name) && strncmp(cur_var->name, name, name_len) == 0) {
+            return cur_var;
+        }
+        cur_var = cur_var->next;
+    }
+    return find_var(symbol_table->prev, name);
+}
+
 void add_var_to_symbol_table(char *name) {
-    printf("add %d\n", cur_symbol_table);
     Var *new_var = calloc(1, sizeof(Var));
     new_var->name = name;
     new_var->offset = var_offset++;
@@ -204,7 +221,7 @@ void print_tree(Node *cur_node) {
         /* special */
         case ND_BLOCK: {
             printf("<block>\n");
-            NodeList *cur_node_list = cur_node->extend.stmts;
+            NodeList *cur_node_list = cur_node->extend.blocknode.stmts;
             while(cur_node_list) {
                 printf("<stmt>\n");
                 print_tree(cur_node_list->tree);
@@ -327,10 +344,11 @@ Node *add_node_ter_op(Node *condition_expr, Node *if_stmt, Node *else_stmt) {
     return new_node;
 }
 
-Node *add_node_block(NodeList *stmts) {
+Node *add_node_block(NodeList *stmts, SymbolTable *symbol_table) {
     Node *new_node = calloc(1, sizeof(Node));
     new_node->type = ND_BLOCK;
-    new_node->extend.stmts = stmts;
+    new_node->extend.blocknode.stmts = stmts;
+    new_node->extend.blocknode.symbol_table = symbol_table;
     return new_node;
 }
 
@@ -373,19 +391,26 @@ Node *primary();
 /* definition */
 
 /*
-<primary-expression> ::= <identifier>
+<primary-expression> ::= <identifier> ok
                        | <constant> incomplete
                        | <string>
-                       | ( <expression> ) ok 
+                       | ( <expression> ) ok
 */
 Node *primary() {
     Node *cur_node;
-    // try constant
-    if(cur_token->type == TK_CONSTANT) {
-        //TODO: support different type
-        cur_node = add_node_int(atoi(cur_token->str));
-        next_token();
-        return cur_node;
+    // type to select action
+    switch(cur_token->type) {
+        case TK_CONSTANT: {
+            // support different type
+            cur_node = add_node_int(atoi(cur_token->str));
+            next_token();
+            return cur_node;
+        }
+        case TK_IDENT: {
+            cur_node = add_node_ident(cur_token->str);
+            next_token();
+            return cur_node;
+        }
     }
     if(consume_op("(")) {
         cur_node = expr();
@@ -738,6 +763,8 @@ Node *init_declarator() {
 Node *declaration() {
     Node *node = NULL;
     while(!consume_op(";")) {
+        // hack
+        //TODO: finish declaration-specifier
         if(strncmp(cur_token->str, "int", 3) != 0)
             return node;
         next_token();
@@ -756,7 +783,6 @@ Node *compound_stmt() {
 
     // init symbol_table;
     SymbolTable *symbol_table = add_symbol_table();
-    printf("init %d\n", symbol_table);
     while(!consume_op("}")) {
         Node *decl_stmt = NULL;
         // may be declaration or stmt
@@ -764,6 +790,8 @@ Node *compound_stmt() {
             // add to symbol table
             cur_symbol_table = symbol_table;
             add_var_to_symbol_table(decl_stmt->extend.name);
+            // establish declaration node;
+            decl_stmt = add_node_bi_op(ND_DECLARE, decl_stmt, NULL);
         } else {
             decl_stmt = stmt();
         }
@@ -779,7 +807,7 @@ Node *compound_stmt() {
             cur_node = new_node;
         }
     }
-    return add_node_block(node_list);
+    return add_node_block(node_list, symbol_table);
 }
 
 /* <jump-statement> ::= goto <identifier> ;
@@ -812,6 +840,7 @@ Node *jump_stmt() {
               | <iteration-statement>
               | <jump-statement> ok
 */
+
 Node *stmt() {
     if(consume_op("{")) {
         return compound_stmt();

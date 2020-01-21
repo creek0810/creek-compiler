@@ -27,6 +27,7 @@ struct Token {
 
 typedef struct TerNode TerNode;
 typedef struct BiNode BiNode;
+typedef struct BlockNode BlockNode;
 typedef struct Node Node;
 typedef enum NodeType NodeType;
 typedef union NodeExtend NodeExtend;
@@ -55,6 +56,7 @@ struct Var {
 
 struct SymbolTable {
     SymbolTableList *inner;
+    SymbolTable *prev;
     Var *var;
 };
 
@@ -66,13 +68,17 @@ struct TerNode {
     Node *condition, *if_stmt, *else_stmt;
 };
 
+struct BlockNode {
+    NodeList *stmts;
+    SymbolTable *symbol_table;
+};
 
 union NodeExtend{
 	int val; // ND_INT
     Node *expr; // unary operation (* &), return
     BiNode binode; // bi operation
     TerNode ternode; // ter operation(if else)
-    NodeList *stmts; // compound stmt
+    BlockNode blocknode; // compoud stmt
     char *name; // ident
 };
 
@@ -85,6 +91,7 @@ enum NodeType {
     ND_BIT_NOT, // ~
     ND_LOGIC_NOT, // !
     /* bi op */
+    ND_DECLARE, // declare variable
     ND_ADD, // +
     ND_SUB, // -
     ND_MUL, // num * num
@@ -144,8 +151,10 @@ SymbolTable *symbol_table_head;
 void tokenize(FILE*);
 Node *parse();
 void codegen(Node*);
+Var *find_var(SymbolTable*,char*);
 
 /* debug function */
+void print_cur_token(Token*);
 void print_token();
 void print_tree(Node*);
 void print_symbol_table(SymbolTable*);
