@@ -9,6 +9,57 @@ def compile_and_run(test_data):
     result = os.system("./test")
     return result >> 8
 
+def test_assign():
+    # test assign op
+    mapping_table = {
+        "=": 2,
+        "*=": 20,
+        "/=": 5,
+        "%=": 0,
+        "+=": 12,
+        "-=": 8,
+        "<<=": 40,
+        ">>=": 2,
+        "&=": 2,
+        "^=": 8,
+        "|=": 10
+    }
+    for op in mapping_table:
+        result = compile_and_run("""
+        {{
+            int a;
+            a = 10;
+            a {op} 2;
+            return a;
+        }}
+        """.format(op=op))
+        assert result == mapping_table[op]
+
+    # test association
+    result = compile_and_run("""
+    {
+        int a;
+        int b;
+        a = 1;
+        b = 2;
+        a = b = 3;
+        return a;
+    }
+    """)
+    assert result == 3
+
+    result = compile_and_run("""
+    {
+        int a;
+        int b;
+        a = 1;
+        b = 2;
+        a = b = 3;
+        return b;
+    }
+    """)
+    assert result == 3
+
 
 def test_control():
     result = compile_and_run("""

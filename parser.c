@@ -74,12 +74,6 @@ void next_token() {
     cur_token = cur_token->next;
 }
 
-const int jump_keyword_len = 4;
-const char *jump_keyword[4] = {
-    "goto", "continue",
-    "break", "return"
-};
-
 bool consume_op(char *str) {
     if (cur_token->type == TK_PUNC &&
         strlen(str) == cur_token->len &&
@@ -124,6 +118,11 @@ int is_unary_operator(){
     return -1;
 }
 
+const int jump_keyword_len = 4;
+const char *jump_keyword[4] = {
+    "goto", "continue",
+    "break", "return"
+};
 bool is_jump() {
     if(cur_token->type == TK_KEYWORD) {
         for(int i=0; i<jump_keyword_len; i++) {
@@ -195,7 +194,7 @@ Node *declarator();
 Node *init_declarator();
 Node *expr_stmt();
 Node *expr();
-Node *assign();
+Node *assign(); // ok
 Node *condition();
 Node *logic_or(); // ok
 Node *logic_and(); // ok
@@ -501,15 +500,66 @@ Node *condition() {
     return cur_node;
 }
 
-/*
+/* codegen ok
 <assignment-expression> ::= <conditional-expression> ok
-                          | <unary-expression> <assignment-operator> <assignment-expression>
+                          | <unary-expression> <assignment-operator> <assignment-expression> ok
 */
 Node *assign() {
     Node *cur_node = condition();
     // TODO: support another assign op
     if(consume_op("=")) {
         cur_node = add_node_bi_op(ND_ASSIGN, cur_node, assign());
+        return cur_node;
+    }
+    if(consume_op("*=")) {
+        Node *calc = add_node_bi_op(ND_MUL, cur_node, assign());
+        cur_node = add_node_bi_op(ND_ASSIGN, cur_node, calc);
+        return cur_node;
+    }
+    if(consume_op("/=")) {
+        Node *calc = add_node_bi_op(ND_DIV, cur_node, assign());
+        cur_node = add_node_bi_op(ND_ASSIGN, cur_node, calc);
+        return cur_node;
+    }
+    if(consume_op("\%=")) {
+        Node *calc = add_node_bi_op(ND_MOD, cur_node, assign());
+        cur_node = add_node_bi_op(ND_ASSIGN, cur_node, calc);
+        return cur_node;
+    }
+    if(consume_op("+=")) {
+        Node *calc = add_node_bi_op(ND_ADD, cur_node, assign());
+        cur_node = add_node_bi_op(ND_ASSIGN, cur_node, calc);
+        return cur_node;
+    }
+    if(consume_op("-=")) {
+        Node *calc = add_node_bi_op(ND_SUB, cur_node, assign());
+        cur_node = add_node_bi_op(ND_ASSIGN, cur_node, calc);
+        return cur_node;
+    }
+    if(consume_op("<<=")) {
+        Node *calc = add_node_bi_op(ND_LSHIFT, cur_node, assign());
+        cur_node = add_node_bi_op(ND_ASSIGN, cur_node, calc);
+        return cur_node;
+    }
+    if(consume_op(">>=")) {
+        Node *calc = add_node_bi_op(ND_RSHIFT, cur_node, assign());
+        cur_node = add_node_bi_op(ND_ASSIGN, cur_node, calc);
+        return cur_node;
+    }
+    if(consume_op("&=")) {
+        Node *calc = add_node_bi_op(ND_BIT_AND, cur_node, assign());
+        cur_node = add_node_bi_op(ND_ASSIGN, cur_node, calc);
+        return cur_node;
+    }
+    if(consume_op("^=")) {
+        Node *calc = add_node_bi_op(ND_BIT_XOR, cur_node, assign());
+        cur_node = add_node_bi_op(ND_ASSIGN, cur_node, calc);
+        return cur_node;
+    }
+    if(consume_op("|=")) {
+        Node *calc = add_node_bi_op(ND_BIT_OR, cur_node, assign());
+        cur_node = add_node_bi_op(ND_ASSIGN, cur_node, calc);
+        return cur_node;
     }
     return cur_node;
 }

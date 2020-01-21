@@ -119,16 +119,6 @@ enum NodeType {
     ND_RETURN, // return
     /* assign op node */
     ND_ASSIGN,
-    ND_MUL_ASSIGN,
-    ND_DIV_ASSIGN,
-    ND_MOD_ASSIGN,
-    ND_ADD_ASSIGN,
-    ND_SUB_ASSIGN,
-    ND_LSHIFT_ASSIGN,
-    ND_RSHIFT_ASSIGN,
-    ND_AND_ASSIGN,
-    ND_XOR_ASSIGN,
-    ND_OR_ASSIGN,
 };
 
 struct Node {
