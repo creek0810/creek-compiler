@@ -144,6 +144,7 @@ Node *parse();
 void codegen(Node*);
 Var *find_var(SymbolTable*,char*);
 int count_symbol_table(SymbolTable*);
+char *get_ident_name(Node*);
 
 /* debug function */
 void print_cur_token(Token*);

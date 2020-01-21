@@ -9,6 +9,7 @@ def compile_and_run(test_data):
     result = os.system("./test")
     return result >> 8
 
+
 def test_assign():
     # test assign op
     mapping_table = {
@@ -118,6 +119,26 @@ def test_return():
 
 
 def test_lvar():
+    # test init
+    result = compile_and_run("""
+        {
+            int a = 2;
+            return a
+        }
+    """)
+    assert result == 2
+    result = compile_and_run("""
+        {
+            int a = 2;
+            {
+                int a = 3;
+                return a;
+            }
+            return a;
+        }
+    """)
+    assert result == 3
+    # test block
     result = compile_and_run("""
         {
             int a;

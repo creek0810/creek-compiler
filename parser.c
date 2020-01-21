@@ -70,6 +70,13 @@ int count_symbol_table(SymbolTable *cur_table) {
 }
 
 /* help function */
+char *get_ident_name(Node *cur_node) {
+    cur_node = cur_node->extend.binode.rhs;
+    if(cur_node->type == ND_ASSIGN) {
+        return cur_node->extend.binode.lhs->extend.name;
+    }
+    return cur_node->extend.name;
+}
 void next_token() {
     cur_token = cur_token->next;
 }
@@ -186,16 +193,17 @@ Node *add_node_ident(char *name) {
 Node *stmt();
 Node *selection_stmt();
 Node *jump_stmt();
-Node *compound_stmt();
+Node *compound_stmt(); // ok
 Node *declaration();
 Node *direct_declarator();
 Node *declaration_specifier();
 Node *declarator();
-Node *init_declarator();
-Node *expr_stmt();
+Node *init_declarator(); // ok
+Node *initializer();
+Node *expr_stmt(); // ok
 Node *expr();
 Node *assign(); // ok
-Node *condition();
+Node *condition(); // ok
 Node *logic_or(); // ok
 Node *logic_and(); // ok
 Node *inclusive_or(); // ok
@@ -485,7 +493,7 @@ Node *logic_or() {
     return cur_node;
 }
 
-/*
+/* codegen ok
 <conditional-expression> ::= <logical-or-expression> ok
                            | <logical-or-expression> ? <expression> : <conditional-expression> ok
 */
@@ -586,7 +594,7 @@ Node *expr_stmt() {
 }
 
 /* <direct-declarator> ::= <identifier> ok
-                      | ( <declarator> )
+                      | ( <declarator> ) ok
                       | <direct-declarator> [ {<constant-expression>}? ]
                       | <direct-declarator> ( <parameter-type-list> )
                       | <direct-declarator> ( {<identifier>}* )
@@ -595,6 +603,11 @@ Node *direct_declarator() {
     if(cur_token->type == TK_IDENT) {
         Node *node = add_node_ident(cur_token->str);
         next_token();
+        return node;
+    }
+    if(consume_op("(")) {
+        Node *node = declarator();
+        consume_op(")");
         return node;
     }
 }
@@ -623,19 +636,30 @@ Node *declaration_specifier() {
 
 }
 
+/*
+<initializer> ::= <assignment-expression>
+                | { <initializer-list> }
+                | { <initializer-list> , }
+*/
+Node *initializer() {
+    return assign();
+}
+
 /* <declarator> ::= {<pointer>}? <direct-declarator> */
 Node *declarator() {
-
     return direct_declarator();
 }
 
-/*
+/* codegen ok
 <init-declarator> ::= <declarator> ok
-                    | <declarator> = <initializer>
+                    | <declarator> = <initializer> ok
 */
 Node *init_declarator() {
-
-    return declarator();
+    Node *node = declarator();
+    if(consume_op("=")) {
+        node = add_node_bi_op(ND_ASSIGN, node, initializer());
+    }
+    return node;
 }
 
 /* <declaration> ::=  {<declaration-specifier>}+ {<init-declarator>}* ; */
@@ -648,11 +672,14 @@ Node *declaration() {
             return node;
         next_token();
         node = init_declarator();
+        // TODO: lhs should be type info
+        node = add_node_bi_op(ND_DECLARE, NULL, node);
     }
+    // establish declaration node;
     return node;
 }
 
-/*
+/* codegen ok
 <compound-statement> ::= { {<declaration>}* {<statement>}*  ok}
 */
 Node *compound_stmt() {
@@ -668,9 +695,9 @@ Node *compound_stmt() {
         if((decl_stmt = declaration()) != NULL) {
             // add to symbol table
             cur_symbol_table = symbol_table;
-            add_var_to_symbol_table(decl_stmt->extend.name);
-            // establish declaration node;
-            decl_stmt = add_node_bi_op(ND_DECLARE, decl_stmt, NULL);
+            char *name = get_ident_name(decl_stmt);
+            // printf("name: %s\n", name);
+            add_var_to_symbol_table(name);
         } else {
             decl_stmt = stmt();
         }
@@ -739,7 +766,7 @@ Node *selection_stmt() {
 <statement> ::= <labeled-statement>
               | <expression-statement> ok
               | <compound-statement> ok
-              | <selection-statement>
+              | <selection-statement> ok
               | <iteration-statement>
               | <jump-statement> ok
 */

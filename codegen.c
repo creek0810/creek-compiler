@@ -44,9 +44,12 @@ void gen(Node *cur_node) {
             printf("  ret\n");
             return;
         }
-        // TODO: if has init stmt then do something
-        case ND_DECLARE:
+        case ND_DECLARE: {
+            if(cur_node->extend.binode.rhs->type == ND_ASSIGN) {
+                gen(cur_node->extend.binode.rhs);
+            }
             return;
+        }
         case ND_IDENT: {
             Var *cur_var = find_var(gen_symbol_table, cur_node->extend.name);
             if(cur_var) {
