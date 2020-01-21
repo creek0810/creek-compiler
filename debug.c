@@ -61,6 +61,9 @@ void print_symbol_table(SymbolTable *cur_table) {
 }
 
 void print_tree(Node *cur_node) {
+    if(!cur_node) {
+        return;
+    }
     switch(cur_node->type) {
         /* constant */
         case ND_INT:
@@ -224,6 +227,12 @@ void print_tree(Node *cur_node) {
             break;
         case ND_CONTINUE:
             printf("<continue></continue>\n");
+            break;
+        case ND_DECLARE:
+            printf("<declare>\n");
+            print_tree(cur_node->extend.binode.lhs);
+            print_tree(cur_node->extend.binode.rhs);
+            printf("</declare>\n");
             break;
         default:
             printf("print tree function has not defined %d", cur_node->type);

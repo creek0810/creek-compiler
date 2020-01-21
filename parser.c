@@ -185,6 +185,7 @@ Node *add_node_ident(char *name) {
 
 /* parse function */
 Node *stmt();
+Node *selection_stmt();
 Node *jump_stmt();
 Node *compound_stmt();
 Node *declaration();
@@ -663,6 +664,28 @@ Node *jump_stmt() {
 }
 
 /*
+<selection-statement> ::= if ( <expression> ) <statement> ok
+                        | if ( <expression> ) <statement> else <statement> ok
+                        | switch ( <expression> ) <statement>
+*/
+Node *selection_stmt() {
+    if(consume_keyword("if")) {
+        consume_op("(");
+        Node *cond = expr();
+        consume_op(")");
+        Node *if_true = stmt();
+        if(consume_keyword("else")) {
+            return add_node_ter_op(cond, if_true, stmt());
+        }
+        return add_node_ter_op(cond, if_true, NULL);
+    }
+    if(consume_keyword("switch")) {
+        // TODO: support switch
+    }
+    return NULL;
+}
+
+/*
 <statement> ::= <labeled-statement>
               | <expression-statement> ok
               | <compound-statement> ok
@@ -672,10 +695,13 @@ Node *jump_stmt() {
 */
 
 Node *stmt() {
+    Node *cur_node = NULL;
     if(consume_op("{")) {
         return compound_stmt();
     } else if(is_jump()) {
         return jump_stmt();
+    } else if((cur_node = selection_stmt()) != NULL) {
+        return cur_node;
     }
     return expr_stmt();
 }

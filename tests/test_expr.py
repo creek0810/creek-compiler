@@ -10,6 +10,55 @@ def compile_and_run(test_data):
     return result >> 8
 
 
+def test_control():
+    result = compile_and_run("""
+    {
+        int a;
+        a = 1;
+        return a ? 2 : 5;
+    }
+    """)
+    assert result == 2
+
+    result = compile_and_run("""
+    {
+        int a;
+        a = 0;
+        return a ? 2 : 5;
+    }
+    """)
+    assert result == 5
+
+    result = compile_and_run("""
+    {
+        int a;
+        a = 2;
+        return a ? 2 : 5;
+    }
+    """)
+    assert result == 2
+
+    result = compile_and_run("""
+    {
+        if(1) {
+            return 2;
+        }
+        return 0;
+    }
+    """)
+    assert result == 2
+
+    result = compile_and_run("""
+    {
+        if(0) {
+            return 2;
+        }
+        return 0;
+    }
+    """)
+    assert result == 0
+
+
 def test_return():
     result = compile_and_run("return 5 + 2 * 10;")
     assert result == 25

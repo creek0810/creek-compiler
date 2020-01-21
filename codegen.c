@@ -1,6 +1,8 @@
 #include "compiler.h"
 
 SymbolTable *gen_symbol_table;
+int IF_CNT = 0;
+
 
 /* pop function */
 void normal_pop() {
@@ -78,6 +80,23 @@ void gen(Node *cur_node) {
         }
         case ND_INT: {
             printf("  push %d\n", cur_node->extend.val);
+            return;
+        }
+        case ND_IF: {
+            int if_id = IF_CNT++;
+            gen(cur_node->extend.ternode.condition);
+            printf("  pop rax\n");
+            printf("  cmp rax, 0\n");
+            printf("  je IF_FALSE_%d\n", if_id);
+            // if true
+            gen(cur_node->extend.ternode.if_stmt);
+            printf("  jmp IF_END_%d\n", if_id);
+            // if false
+            printf("IF_FALSE_%d:\n", if_id);
+            if(cur_node->extend.ternode.else_stmt) {
+                gen(cur_node->extend.ternode.else_stmt);
+            }
+            printf("IF_END_%d:\n", if_id);
             return;
         }
     }
