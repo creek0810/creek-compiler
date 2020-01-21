@@ -1,4 +1,4 @@
-OBJS = codegen.o tokenizer.o parser.o compiler.o
+OBJS = codegen.o tokenizer.o parser.o compiler.o debug.o
 compiler: $(OBJS)
 	cc -o compiler $(OBJS)
 

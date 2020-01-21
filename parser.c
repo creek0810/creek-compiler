@@ -51,208 +51,25 @@ void add_var_to_symbol_table(char *name) {
     new_var->offset = var_offset++;
     new_var->next = cur_symbol_table->var;
     cur_symbol_table->var = new_var;
+    cur_symbol_table->cnt += 1;
+}
+
+int count_symbol_table(SymbolTable *cur_table) {
+    int cnt = 0;
+    if(!cur_table) {
+        return 0;
+    }
+    // add cur
+    cnt += cur_table->cnt;
+    SymbolTableList *cur_it_table = cur_table->inner;
+    while(cur_it_table) {
+        cnt += count_symbol_table(cur_it_table->table);
+        cur_it_table = cur_it_table->next;
+    }
+    return cnt;
 }
 
 /* help function */
-
-void print_var_list(Var *cur_var) {
-    while(cur_var) {
-        printf("<var>%s %d</var>\n", cur_var->name, cur_var->offset);
-        cur_var = cur_var->next;
-    }
-}
-
-void print_symbol_table(SymbolTable *cur_table) {
-    /*
-    (SymbolTable.inner)
-    function -> scope 1 -> scope 3
-                | (SymbolTableList.next)
-                V
-                scope 2 -> scope 5
-    */
-    if(!cur_table) {
-        return;
-    }
-    printf("<block>\n");
-    print_var_list(cur_table->var);
-    SymbolTableList *cur_it_table = cur_table->inner;
-    while(cur_it_table) {
-        print_symbol_table(cur_it_table->table);
-        cur_it_table = cur_it_table->next;
-    }
-    printf("</block>\n");
-}
-
-void print_tree(Node *cur_node) {
-    switch(cur_node->type) {
-        /* constant */
-        case ND_INT:
-            printf("<int>");
-            printf("%d", cur_node->extend.val);
-            printf("</int>\n");
-            break;
-        case ND_IDENT:
-            printf("<ident>");
-            printf("%s", cur_node->extend.name);
-            printf("</ident>\n");
-            break;
-        /* unary op */
-        case ND_BIT_NOT:
-            printf("<bit_not>\n");
-            print_tree(cur_node->extend.expr);
-            printf("</bit_not>\n");
-            break;
-        case ND_LOGIC_NOT:
-            printf("<logic_not>\n");
-            print_tree(cur_node->extend.expr);
-            printf("</logic_not>\n");
-            break;
-        /* bi op */
-        case ND_ASSIGN:
-            printf("<assign>\n");
-            print_tree(cur_node->extend.binode.lhs);
-            print_tree(cur_node->extend.binode.rhs);
-            printf("</assign>\n");
-            break;
-        case ND_ADD:
-            printf("<add>\n");
-            print_tree(cur_node->extend.binode.lhs);
-            print_tree(cur_node->extend.binode.rhs);
-            printf("</add>\n");
-            break;
-        case ND_SUB:
-            printf("<sub>\n");
-            print_tree(cur_node->extend.binode.lhs);
-            print_tree(cur_node->extend.binode.rhs);
-            printf("</sub>\n");
-            break;
-        case ND_MUL:
-            printf("<mul>\n");
-            print_tree(cur_node->extend.binode.lhs);
-            print_tree(cur_node->extend.binode.rhs);
-            printf("</mul>\n");
-            break;
-        case ND_DIV:
-            printf("<div>\n");
-            print_tree(cur_node->extend.binode.lhs);
-            print_tree(cur_node->extend.binode.rhs);
-            printf("</div>\n");
-            break;
-        case ND_MOD:
-            printf("<mod>\n");
-            print_tree(cur_node->extend.binode.lhs);
-            print_tree(cur_node->extend.binode.rhs);
-            printf("</mod>\n");
-            break;
-        case ND_NE:
-            printf("<ne>\n");
-            print_tree(cur_node->extend.binode.lhs);
-            print_tree(cur_node->extend.binode.rhs);
-            printf("</ne>\n");
-            break;
-        case ND_EQ:
-            printf("<eq>\n");
-            print_tree(cur_node->extend.binode.lhs);
-            print_tree(cur_node->extend.binode.rhs);
-            printf("</eq>\n");
-            break;
-        case ND_LT:
-            printf("<lt>\n");
-            print_tree(cur_node->extend.binode.lhs);
-            print_tree(cur_node->extend.binode.rhs);
-            printf("</lt>\n");
-            break;
-        case ND_LE:
-            printf("<le>\n");
-            print_tree(cur_node->extend.binode.lhs);
-            print_tree(cur_node->extend.binode.rhs);
-            printf("</le>\n");
-            break;
-        case ND_LSHIFT:
-            printf("<lshift>\n");
-            print_tree(cur_node->extend.binode.lhs);
-            print_tree(cur_node->extend.binode.rhs);
-            printf("</lshift>\n");
-            break;
-        case ND_RSHIFT:
-            printf("<rshift>\n");
-            print_tree(cur_node->extend.binode.lhs);
-            print_tree(cur_node->extend.binode.rhs);
-            printf("</rshift>\n");
-            break;
-        case ND_BIT_AND:
-            printf("<bit_and>\n");
-            print_tree(cur_node->extend.binode.lhs);
-            print_tree(cur_node->extend.binode.rhs);
-            printf("</bit_and>\n");
-            break;
-        case ND_LOGIC_AND:
-            printf("<logic_and>\n");
-            print_tree(cur_node->extend.binode.lhs);
-            print_tree(cur_node->extend.binode.rhs);
-            printf("</logic_and>\n");
-            break;
-        case ND_LOGIC_OR:
-            printf("<logic_or>\n");
-            print_tree(cur_node->extend.binode.lhs);
-            print_tree(cur_node->extend.binode.rhs);
-            printf("</logic_or>\n");
-            break;
-        case ND_BIT_OR:
-            printf("<bit_or>\n");
-            print_tree(cur_node->extend.binode.lhs);
-            print_tree(cur_node->extend.binode.rhs);
-            printf("</bit_or>\n");
-            break;
-        case ND_BIT_XOR:
-            printf("<bit_xor>\n");
-            print_tree(cur_node->extend.binode.lhs);
-            print_tree(cur_node->extend.binode.rhs);
-            printf("</bit_xor>\n");
-            break;
-        /* ternary op */
-        case ND_IF:
-            printf("<if>\n");
-            printf("<condition>\n");
-            print_tree(cur_node->extend.ternode.condition);
-            printf("</condition>\n");
-            printf("<if_true>\n");
-            print_tree(cur_node->extend.ternode.if_stmt);
-            printf("</if_true>\n");
-            printf("<if_false>\n");
-            print_tree(cur_node->extend.ternode.else_stmt);
-            printf("</if_false>\n");
-            printf("</if>\n");
-            break;
-        /* special */
-        case ND_BLOCK: {
-            printf("<block>\n");
-            NodeList *cur_node_list = cur_node->extend.blocknode.stmts;
-            while(cur_node_list) {
-                printf("<stmt>\n");
-                print_tree(cur_node_list->tree);
-                printf("</stmt>\n");
-                cur_node_list = cur_node_list->next;
-            }
-            printf("</block>\n");
-            break;
-        }
-        case ND_RETURN:
-            printf("<return>\n");
-            print_tree(cur_node->extend.expr);
-            printf("</return>\n");
-            break;
-        case ND_BREAK:
-            printf("<break></break>\n");
-            break;
-        case ND_CONTINUE:
-            printf("<continue></continue>\n");
-            break;
-        default:
-            printf("print tree function has not defined %d", cur_node->type);
-    }
-}
-
 void next_token() {
     cur_token = cur_token->next;
 }
@@ -262,17 +79,6 @@ const char *jump_keyword[4] = {
     "goto", "continue",
     "break", "return"
 };
-bool next_is_jump() {
-    if(cur_token->type == TK_KEYWORD) {
-        for(int i=0; i<jump_keyword_len; i++) {
-            if(strlen(jump_keyword[i]) == cur_token->len &&
-               strncmp(cur_token->str, jump_keyword[i], cur_token->len) == 0) {
-                   return true;
-            }
-        }
-    }
-    return false;
-}
 
 bool consume_op(char *str) {
     if (cur_token->type == TK_PUNC &&
@@ -285,9 +91,9 @@ bool consume_op(char *str) {
 }
 
 bool consume_keyword(char *str) {
-    if( cur_token->type == TK_PUNC &&
+    if( cur_token->type == TK_KEYWORD &&
         cur_token->len == strlen(str) &&
-        strncmp(cur_token->str, str, cur_token->len)) {
+        strncmp(cur_token->str, str, cur_token->len) == 0) {
         cur_token = cur_token->next;
         return true;
     }
@@ -302,7 +108,7 @@ bool consume_ident() {
     return false;
 }
 
-/* check special op */
+/* check */
 const int op_len = 6;
 const char *op[6] = {"&", "*", "+", "-", "~", "!"};
 int is_unary_operator(){
@@ -316,6 +122,18 @@ int is_unary_operator(){
     }
     // return -1 if not a unary operator
     return -1;
+}
+
+bool is_jump() {
+    if(cur_token->type == TK_KEYWORD) {
+        for(int i=0; i<jump_keyword_len; i++) {
+            if(strlen(jump_keyword[i]) == cur_token->len &&
+               strncmp(cur_token->str, jump_keyword[i], cur_token->len) == 0) {
+                   return true;
+            }
+        }
+    }
+    return false;
 }
 
 /* node function */
@@ -823,7 +641,7 @@ Node *compound_stmt() {
 /* <jump-statement> ::= goto <identifier> ;
                    | continue ; ok
                    | break ; ok
-                   | return {<expression>}? ; ok
+                   | return {<expression>}? ; ok ok
 */
 Node *jump_stmt() {
     if(consume_keyword("goto")) {
@@ -836,9 +654,11 @@ Node *jump_stmt() {
         return add_node_unary(ND_BREAK, NULL);
     } else if(consume_keyword("return")) {
         if(consume_op(";")) {
-            return add_node_unary(ND_RETURN, NULL);
+            return NULL;
         }
-        return add_node_unary(ND_RETURN, expr());
+        Node *cur_node = add_node_unary(ND_RETURN, expr());
+        consume_op(";");
+        return cur_node;
     }
 }
 
@@ -854,7 +674,7 @@ Node *jump_stmt() {
 Node *stmt() {
     if(consume_op("{")) {
         return compound_stmt();
-    } else if(next_is_jump()) {
+    } else if(is_jump()) {
         return jump_stmt();
     }
     return expr_stmt();

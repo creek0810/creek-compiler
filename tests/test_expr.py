@@ -10,6 +10,55 @@ def compile_and_run(test_data):
     return result >> 8
 
 
+def test_return():
+    result = compile_and_run("return 5 + 2 * 10;")
+    assert result == 25
+    result = compile_and_run("return (5 + 2) * 10;")
+    assert result == 70
+
+
+def test_lvar():
+    result = compile_and_run("""
+        {
+            int a;
+            a = 1;
+            {
+                a = a + 1;
+                return a;
+            }
+        }
+    """)
+    assert result == 2
+
+    result = compile_and_run("""
+        {
+            int a;
+            a = 1;
+            {
+                int a;
+                a = 10
+                a = a + 1;
+                return a;
+            }
+        }
+    """)
+    assert result == 11
+
+    result = compile_and_run("""
+        {
+            int a;
+            a = 1;
+            {
+                int a;
+                a = 10;
+                a = a + 1;
+            }
+            return a;
+        }
+    """)
+    assert result == 1
+
+"""
 def test_logic(compiler):
     # and
     result = compile_and_run("1&&2;")
@@ -106,3 +155,4 @@ def test_shift(compiler):
     assert result == 1
     result = compile_and_run("5 << 1")
     assert result == 10
+"""

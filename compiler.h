@@ -58,6 +58,7 @@ struct SymbolTable {
     SymbolTableList *inner;
     SymbolTable *prev;
     Var *var;
+    int cnt;
 };
 
 struct BiNode {
@@ -152,6 +153,7 @@ void tokenize(FILE*);
 Node *parse();
 void codegen(Node*);
 Var *find_var(SymbolTable*,char*);
+int count_symbol_table(SymbolTable*);
 
 /* debug function */
 void print_cur_token(Token*);

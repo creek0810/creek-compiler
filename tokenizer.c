@@ -111,37 +111,6 @@ void add_token(char *str, int len, TokenType type) {
     }
 }
 
-void print_cur_token(Token *it) {
-     switch(it->type) {
-            case TK_PUNC:
-                printf("punc: ");
-                break;
-            case TK_CONSTANT:
-                printf("constant: ");
-                break;
-            case TK_STRING:
-                printf("string literal: ");
-                break;
-            case TK_KEYWORD:
-                printf("keyword: ");
-                break;
-            case TK_IDENT:
-                printf("ident: ");
-                break;
-            case TK_EOF:
-                printf("eof\n");
-                return;
-        }
-        printf("%s %d\n", it->str, it->len);
-}
-void print_token() {
-    Token *it = token_list;
-    while(it) {
-       print_cur_token(it);
-        it = it->next;
-    }
-}
-
 /* token type function */
 
 int punc(char *str, int base_loc, int str_len) {
@@ -250,4 +219,3 @@ void tokenize(FILE *fp) {
     }
     add_token("", 0, TK_EOF);
 }
-
