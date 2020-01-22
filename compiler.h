@@ -28,6 +28,7 @@ struct Token {
 typedef struct TerNode TerNode;
 typedef struct BiNode BiNode;
 typedef struct BlockNode BlockNode;
+typedef struct LoopNode LoopNode;
 typedef struct Node Node;
 typedef enum NodeType NodeType;
 typedef union NodeExtend NodeExtend;
@@ -74,12 +75,20 @@ struct BlockNode {
     SymbolTable *symbol_table;
 };
 
+struct LoopNode {
+    Node *init;
+    Node *condition;
+    Node *stmt;
+    Node *after_check;
+};
+
 union NodeExtend{
 	int val; // ND_INT
     Node *expr; // unary operation (* &), return
     BiNode binode; // bi operation
     TerNode ternode; // ter operation(if else)
     BlockNode blocknode; // compoud stmt
+    LoopNode loopnode; // for while
     char *name; // ident
 };
 
@@ -113,6 +122,8 @@ enum NodeType {
     ND_IF, // cond ? if_stmt : else_stmt | if(...) ... else ...
     /* special */
     ND_BLOCK, // {...}
+    ND_LOOP, // for, while
+    ND_DO_LOOP, // do while
     /* jmp */
     ND_BREAK, // break
     ND_CONTINUE, // continue

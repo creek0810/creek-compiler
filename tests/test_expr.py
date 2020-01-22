@@ -9,6 +9,56 @@ def compile_and_run(test_data):
     result = os.system("./test")
     return result >> 8
 
+def test_loop():
+    result = compile_and_run("""
+    {
+        int a = 0;
+        int b = 2;
+        while(a < 10) {
+            b += 2;
+            a += 1;
+        }
+        return b;
+    }
+    """)
+    assert result == 22
+
+    result = compile_and_run("""
+    {
+        int a = 2;
+        int b = 2;
+        for(a = 0; a<10; a+=1) {
+            b += 2;
+        }
+        return b;
+    }
+    """)
+    assert result == 22
+
+    result = compile_and_run("""
+    {
+        int a = 2;
+        int b = 0;
+        for(a = 0; a<10; a+=1) {
+            b += a;
+        }
+        return b;
+    }
+    """)
+    assert result == 45
+
+    result = compile_and_run("""
+    {
+        int a = 2;
+        int b = 0;
+        do {
+            b = 10;
+        } while(a < 2);
+        return b;
+    }
+    """)
+    assert result == 10
+
 
 def test_assign():
     # test assign op

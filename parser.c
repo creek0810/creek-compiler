@@ -142,6 +142,38 @@ bool is_jump() {
     return false;
 }
 
+const int iteration_keyword_len = 3;
+const char *iteration_keyword[3] = {
+    "do", "while", "for"
+};
+bool is_iteration() {
+    if(cur_token->type == TK_KEYWORD) {
+        for(int i=0; i<iteration_keyword_len; i++) {
+            if(strlen(iteration_keyword[i]) == cur_token->len &&
+               strncmp(cur_token->str, iteration_keyword[i], cur_token->len) == 0) {
+                   return true;
+            }
+        }
+    }
+    return false;
+}
+
+const int selection_keyword_len = 2;
+const char *selection_keyword[2] = {
+    "if", "switch"
+};
+bool is_selection() {
+    if(cur_token->type == TK_KEYWORD) {
+        for(int i=0; i<selection_keyword_len; i++) {
+            if(strlen(selection_keyword[i]) == cur_token->len &&
+               strncmp(cur_token->str, selection_keyword[i], cur_token->len) == 0) {
+                   return true;
+            }
+        }
+    }
+    return false;
+}
+
 /* node function */
 Node *add_node_int(int val) {
     Node *new_node = calloc(1, sizeof(Node));
@@ -189,10 +221,21 @@ Node *add_node_ident(char *name) {
     return new_node;
 }
 
+Node *add_node_loop(NodeType type, Node *init, Node *cur_cond, Node *cur_stmt, Node *after) {
+    Node *new_node = calloc(1, sizeof(Node));
+    new_node->type = type;
+    new_node->extend.loopnode.init = init;
+    new_node->extend.loopnode.condition = cur_cond;
+    new_node->extend.loopnode.stmt = cur_stmt;
+    new_node->extend.loopnode.after_check = after;
+    return new_node;
+}
+
 /* parse function */
 Node *stmt();
 Node *selection_stmt();
 Node *jump_stmt();
+Node *iteration_stmt(); // ok
 Node *compound_stmt(); // ok
 Node *declaration();
 Node *direct_declarator();
@@ -514,7 +557,6 @@ Node *condition() {
 */
 Node *assign() {
     Node *cur_node = condition();
-    // TODO: support another assign op
     if(consume_op("=")) {
         cur_node = add_node_bi_op(ND_ASSIGN, cur_node, assign());
         return cur_node;
@@ -716,6 +758,50 @@ Node *compound_stmt() {
     return add_node_block(node_list, symbol_table);
 }
 
+/* codegen ok
+<iteration-statement> ::= while ( <expression> ) <statement> ok ok
+                        | do <statement> while ( <expression> ) ;  ok ok
+                        | for ( {<expression>}? ; {<expression>}? ; {<expression>}? ) <statement> ok ok
+*/
+Node *iteration_stmt() {
+    if(consume_keyword("while")) {
+        consume_op("(");
+        Node *cur_condition = expr();
+        consume_op(")");
+        Node *cur_stmt = stmt();
+        return add_node_loop(ND_LOOP, NULL, cur_condition, cur_stmt, NULL);
+    }
+    if(consume_keyword("for")) {
+        Node *init = NULL, *cur_cond = NULL, *after = NULL;
+        consume_op("(");
+        if(!consume_op(";")) {
+            init = expr();
+            consume_op(";");
+        }
+
+        if(!consume_op(";")) {
+            cur_cond = expr();
+            consume_op(";");
+        }
+
+        if(!consume_op(")")) {
+            after = expr();
+            consume_op(")");
+        }
+        return add_node_loop(ND_LOOP, init, cur_cond, stmt(), after);
+    }
+    if(consume_keyword("do")) {
+        Node *cur_stmt = stmt();
+        consume_keyword("while");
+        consume_op("(");
+        Node *cur_cond = expr();
+        consume_op(")");
+        consume_op(";");
+        return add_node_loop(ND_DO_LOOP, NULL, cur_cond, cur_stmt, NULL);
+    }
+}
+
+
 /* <jump-statement> ::= goto <identifier> ;
                    | continue ; ok
                    | break ; ok
@@ -767,18 +853,21 @@ Node *selection_stmt() {
               | <expression-statement> ok
               | <compound-statement> ok
               | <selection-statement> ok
-              | <iteration-statement>
+              | <iteration-statement> ok
               | <jump-statement> ok
 */
 
 Node *stmt() {
+    // print_cur_token(cur_token);
     Node *cur_node = NULL;
     if(consume_op("{")) {
         return compound_stmt();
     } else if(is_jump()) {
         return jump_stmt();
-    } else if((cur_node = selection_stmt()) != NULL) {
-        return cur_node;
+    } else if(is_selection()) {
+        return selection_stmt();
+    } else if(is_iteration()) {
+        return iteration_stmt();
     }
     return expr_stmt();
 }

@@ -2,6 +2,7 @@
 
 SymbolTable *gen_symbol_table;
 int IF_CNT = 0;
+int LOOP_CNT = 0;
 
 
 /* pop function */
@@ -34,8 +35,38 @@ void gen_addr(int delta) {
 }
 
 void gen(Node *cur_node) {
+    if(cur_node == NULL) {
+        return;
+    }
     // terminal node
     switch(cur_node->type) {
+        case ND_DO_LOOP: {
+            int cur_loop_idx = LOOP_CNT++;
+            gen(cur_node->extend.loopnode.stmt);
+            printf("LOOP_START_%d:\n", cur_loop_idx);
+            gen(cur_node->extend.loopnode.condition);
+            printf("  pop rax\n");
+            printf("  cmp rax, 0\n");
+            printf("  je LOOP_END_%d\n", cur_loop_idx);
+            gen(cur_node->extend.loopnode.stmt);
+            printf("  jmp LOOP_START_%d\n", cur_loop_idx);
+            printf("LOOP_END_%d:\n", cur_loop_idx);
+            return;
+        }
+        case ND_LOOP: {
+            int cur_loop_idx = LOOP_CNT++;
+            gen(cur_node->extend.loopnode.init);
+            printf("LOOP_START_%d:\n", cur_loop_idx);
+            gen(cur_node->extend.loopnode.condition);
+            printf("  pop rax\n");
+            printf("  cmp rax, 0\n");
+            printf("  je LOOP_END_%d\n", cur_loop_idx);
+            gen(cur_node->extend.loopnode.stmt);
+            gen(cur_node->extend.loopnode.after_check);
+            printf("  jmp LOOP_START_%d\n", cur_loop_idx);
+            printf("LOOP_END_%d:\n", cur_loop_idx);
+            return;
+        }
         case ND_RETURN: {
             gen(cur_node->extend.expr);
             printf("  pop rax\n");
