@@ -1,74 +1,55 @@
 #include "compiler.h"
 
 SymbolTable *cur_symbol_table = NULL;
-SymbolTable *symbol_table_head = NULL;
 NodeList *function_list = NULL;
 NodeList *cur_function_node = NULL;
 
 int var_offset = 0;
 
 /*
-   (SymbolTable.inner)
-                    <-
-function -> scope 1 -> scope 3
-         <-   | (SymbolTableList.next)
-              V
-            scope 2 -> scope 5
-                    <-
+    cur_symbol_table
+          |
+          V
+        scope 1 -> scope 2 -> function -> global
 */
 /* symbol table function */
-SymbolTable *add_symbol_table() {
+SymbolTable *push_symbol_table() {
     SymbolTable *new_table = calloc(1, sizeof(SymbolTable));
-    if(cur_symbol_table) {
-        SymbolTableList *new_table_list = calloc(1, sizeof(SymbolTableList));
-        new_table_list->table = new_table;
-        new_table_list->next = cur_symbol_table->inner;
-        cur_symbol_table->inner = new_table_list;
-        new_table->prev = cur_symbol_table;
-    } else {
-        cur_symbol_table = new_table;
-        symbol_table_head = cur_symbol_table;
-    }
+    new_table->prev = cur_symbol_table;
+    cur_symbol_table = new_table;
     return new_table;
+}
+
+void pop_symbol_table() {
+    cur_symbol_table = cur_symbol_table->prev;
 }
 
 Var *find_var(SymbolTable *symbol_table, char *name) {
     if(symbol_table == NULL) {
         return NULL;
     }
-    Var *cur_var = symbol_table->var;
-    while(cur_var) {
-        int name_len = strlen(cur_var->name);
-        if(name_len == strlen(name) && strncmp(cur_var->name, name, name_len) == 0) {
-            return cur_var;
+    while(symbol_table) {
+        Var *cur_var = symbol_table->var;
+        while(cur_var) {
+            int name_len = strlen(cur_var->name);
+            if(name_len == strlen(name) && strncmp(cur_var->name, name, name_len) == 0) {
+                return cur_var;
+            }
+            cur_var = cur_var->next;
         }
-        cur_var = cur_var->next;
+        symbol_table = symbol_table->prev;
     }
-    return find_var(symbol_table->prev, name);
+    return NULL;
 }
 
 void add_var_to_symbol_table(char *name) {
     Var *new_var = calloc(1, sizeof(Var));
     new_var->name = name;
-    new_var->offset = var_offset++;
+    // TODO: support different width
+    new_var->offset = var_offset + 8;
+    var_offset += 8;
     new_var->next = cur_symbol_table->var;
     cur_symbol_table->var = new_var;
-    cur_symbol_table->cnt += 1;
-}
-
-int count_symbol_table(SymbolTable *cur_table) {
-    int cnt = 0;
-    if(!cur_table) {
-        return 0;
-    }
-    // add cur
-    cnt += cur_table->cnt;
-    SymbolTableList *cur_it_table = cur_table->inner;
-    while(cur_it_table) {
-        cnt += count_symbol_table(cur_it_table->table);
-        cur_it_table = cur_it_table->next;
-    }
-    return cnt;
 }
 
 /* help function */
@@ -233,11 +214,12 @@ Node *add_node_loop(NodeType type, Node *init, Node *cur_cond, Node *cur_stmt, N
     return new_node;
 }
 
-Node *add_node_function(char *name, Node *stmt) {
+Node *add_node_function(char *name, Node *stmt, int memory) {
     Node *new_node = calloc(1, sizeof(Node));
     new_node->type = ND_FUNCTION;
     new_node->extend.functionnode.name = name;
     new_node->extend.functionnode.stmt = stmt;
+    new_node->extend.functionnode.memory = memory;
     return new_node;
 }
 
@@ -786,7 +768,7 @@ Node *compound_stmt() {
     NodeList *cur_node;
 
     // init symbol_table;
-    SymbolTable *symbol_table = add_symbol_table();
+    SymbolTable *symbol_table = push_symbol_table();
     while(!consume_op("}")) {
         Node *decl_stmt = NULL;
         // may be declaration or stmt
@@ -811,7 +793,9 @@ Node *compound_stmt() {
             cur_node = new_node;
         }
     }
-    return add_node_block(node_list, symbol_table);
+    Node *block_node = add_node_block(node_list, symbol_table);
+    pop_symbol_table();
+    return block_node;
 }
 
 /* codegen ok
@@ -960,9 +944,8 @@ Node *external_declaration() {
     } else if(consume_op("{")){ // function definition
         // init function symbol table
         cur_symbol_table = NULL;
-        symbol_table_head = NULL;
         // compound_stmt();
-        node = add_node_function(node->extend.name, compound_stmt());
+        node = add_node_function(node->extend.name, compound_stmt(), var_offset);
     }
     return node;
 }

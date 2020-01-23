@@ -58,9 +58,7 @@ void gen(Node *cur_node) {
             printf("  push rbp\n");
             printf("  mov rbp, rsp\n");
             // alloc memory
-            Node *stmt_node = cur_node->extend.functionnode.stmt;
-            SymbolTable *function_symbol_table = stmt_node->extend.blocknode.symbol_table;
-            printf("  sub rsp, %d\n", count_symbol_table(function_symbol_table) * 8);
+            printf("  sub rsp, %d\n", cur_node->extend.functionnode.memory);
             // gen code
             gen(cur_node->extend.functionnode.stmt);
             return;
@@ -109,7 +107,7 @@ void gen(Node *cur_node) {
         case ND_IDENT: {
             Var *cur_var = find_var(gen_symbol_table, cur_node->extend.name);
             if(cur_var) {
-                gen_addr((cur_var->offset + 1) * 8);
+                gen_addr(cur_var->offset);
                 printf("  push [rax]\n");
             } else {
                 printf("  not exist\n");
@@ -121,7 +119,7 @@ void gen(Node *cur_node) {
             gen(cur_node->extend.binode.rhs);
             Var *cur_var = find_var(gen_symbol_table, cur_node->extend.binode.lhs->extend.name);
             // calc lvar offset and store it into rax
-            gen_addr((cur_var->offset + 1) * 8);
+            gen_addr(cur_var->offset);
             printf("  pop rdi\n");
             printf("  mov [rax], rdi\n");
             printf("  push rdi\n"); // left association

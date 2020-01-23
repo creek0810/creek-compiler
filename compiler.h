@@ -35,20 +35,14 @@ typedef enum NodeType NodeType;
 typedef union NodeExtend NodeExtend;
 typedef struct NodeList NodeList;
 typedef struct Var Var;
-typedef struct SymbolTableList SymbolTableList;
 typedef struct SymbolTable SymbolTable;
 
 /*
-   (SymbolTable.inner)
-function -> scope 1 -> scope 3
-              | (SymbolTableList.next)
-              V
-            scope 2 -> scope 5
+    cur_symbol_table
+          |
+          V
+        scope 1 -> scope 2 -> function -> global
 */
-struct SymbolTableList {
-    SymbolTable *table;
-    SymbolTableList *next;
-};
 
 struct Var {
     Var *next;
@@ -57,10 +51,8 @@ struct Var {
 };
 
 struct SymbolTable {
-    SymbolTableList *inner;
     SymbolTable *prev;
     Var *var;
-    int cnt;
 };
 
 struct BiNode {
@@ -86,6 +78,7 @@ struct LoopNode {
 struct FunctionNode {
     Node *stmt;
     SymbolTable *symbol_table;
+    int memory;
     char *name;
 };
 
@@ -157,7 +150,6 @@ Token *token_list;
 Token *cur_token;
 
 SymbolTable *cur_symbol_table;
-SymbolTable *symbol_table_head;
 
 NodeList *function_list;
 

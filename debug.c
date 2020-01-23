@@ -41,23 +41,17 @@ void print_var_list(Var *cur_var) {
 
 void print_symbol_table(SymbolTable *cur_table) {
     /*
-    (SymbolTable.inner)
-    function -> scope 1 -> scope 3
-                | (SymbolTableList.next)
-                V
-                scope 2 -> scope 5
+        cur_symbol_table
+            |
+            V
+            scope 1 -> scope 2 -> function -> global
     */
-    if(!cur_table) {
-        return;
+    while(cur_table) {
+        printf("<block>\n");
+        print_var_list(cur_table->var);
+        cur_table = cur_table->prev;
+        printf("</block>\n");
     }
-    printf("<block>\n");
-    print_var_list(cur_table->var);
-    SymbolTableList *cur_it_table = cur_table->inner;
-    while(cur_it_table) {
-        print_symbol_table(cur_it_table->table);
-        cur_it_table = cur_it_table->next;
-    }
-    printf("</block>\n");
 }
 
 void print_tree(Node *cur_node) {
