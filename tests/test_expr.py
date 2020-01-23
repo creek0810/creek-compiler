@@ -13,10 +13,9 @@ def compile_and_run(test_data):
 
 
 
-""" has symbol table & return stmt
 def test_loop():
     result = compile_and_run("""
-    {
+    int main(){
         int a = 0;
         int b = 2;
         while(a < 10) {
@@ -29,7 +28,7 @@ def test_loop():
     assert result == 22
 
     result = compile_and_run("""
-    {
+    int main(){
         int a = 2;
         int b = 2;
         for(a = 0; a<10; a+=1) {
@@ -41,7 +40,7 @@ def test_loop():
     assert result == 22
 
     result = compile_and_run("""
-    {
+    int main(){
         int a = 2;
         int b = 0;
         for(a = 0; a<10; a+=1) {
@@ -53,7 +52,7 @@ def test_loop():
     assert result == 45
 
     result = compile_and_run("""
-    {
+    int main(){
         int a = 2;
         int b = 0;
         do {
@@ -82,7 +81,7 @@ def test_assign():
     }
     for op in mapping_table:
         result = compile_and_run("""
-        {{
+        int main(){{
             int a;
             a = 10;
             a {op} 2;
@@ -93,7 +92,7 @@ def test_assign():
 
     # test association
     result = compile_and_run("""
-    {
+    int main(){
         int a;
         int b;
         a = 1;
@@ -105,7 +104,7 @@ def test_assign():
     assert result == 3
 
     result = compile_and_run("""
-    {
+    int main(){
         int a;
         int b;
         a = 1;
@@ -119,7 +118,7 @@ def test_assign():
 
 def test_control():
     result = compile_and_run("""
-    {
+    int main(){
         int a;
         a = 1;
         return a ? 2 : 5;
@@ -128,7 +127,7 @@ def test_control():
     assert result == 2
 
     result = compile_and_run("""
-    {
+    int main(){
         int a;
         a = 0;
         return a ? 2 : 5;
@@ -137,7 +136,7 @@ def test_control():
     assert result == 5
 
     result = compile_and_run("""
-    {
+    int main(){
         int a;
         a = 2;
         return a ? 2 : 5;
@@ -146,7 +145,7 @@ def test_control():
     assert result == 2
 
     result = compile_and_run("""
-    {
+    int main(){
         if(1) {
             return 2;
         }
@@ -156,7 +155,7 @@ def test_control():
     assert result == 2
 
     result = compile_and_run("""
-    {
+    int main(){
         if(0) {
             return 2;
         }
@@ -167,23 +166,23 @@ def test_control():
 
 
 def test_return():
-    result = compile_and_run("return 5 + 2 * 10;")
+    result = compile_and_run("int main(){return 5 + 2 * 10;}")
     assert result == 25
-    result = compile_and_run("return (5 + 2) * 10;")
+    result = compile_and_run("int main() {return (5 + 2) * 10;}")
     assert result == 70
 
 
 def test_lvar():
     # test init
     result = compile_and_run("""
-        {
+        int main(){
             int a = 2;
             return a
         }
     """)
     assert result == 2
     result = compile_and_run("""
-        {
+        int main(){
             int a = 2;
             {
                 int a = 3;
@@ -195,7 +194,7 @@ def test_lvar():
     assert result == 3
     # test block
     result = compile_and_run("""
-        {
+        int main(){
             int a;
             a = 1;
             {
@@ -207,7 +206,7 @@ def test_lvar():
     assert result == 2
 
     result = compile_and_run("""
-        {
+        int main(){
             int a;
             a = 1;
             {
@@ -221,7 +220,7 @@ def test_lvar():
     assert result == 11
 
     result = compile_and_run("""
-        {
+        int main(){
             int a;
             a = 1;
             {
@@ -233,8 +232,6 @@ def test_lvar():
         }
     """)
     assert result == 1
-
-"""
 
 """ only expr
 def test_logic(compiler):
