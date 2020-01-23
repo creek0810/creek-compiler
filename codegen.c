@@ -40,6 +40,31 @@ void gen(Node *cur_node) {
     }
     // terminal node
     switch(cur_node->type) {
+        case ND_CALL: {
+            printf("  call %s\n", cur_node->extend.binode.lhs->extend.name);
+            printf("  push rax\n");
+            return;
+        }
+        case ND_FUNCTION: {
+            // TODO: support function
+            if( strlen(cur_node->extend.functionnode.name) == 4 &&
+                strncmp(cur_node->extend.functionnode.name, "main", 4) == 0
+                ) {
+                printf("_main:\n");
+            } else {
+                printf("%s:\n", cur_node->extend.functionnode.name);
+            }
+            // establish base env
+            printf("  push rbp\n");
+            printf("  mov rbp, rsp\n");
+            // alloc memory
+            Node *stmt_node = cur_node->extend.functionnode.stmt;
+            SymbolTable *function_symbol_table = stmt_node->extend.blocknode.symbol_table;
+            printf("  sub rsp, %d\n", count_symbol_table(function_symbol_table) * 8);
+            // gen code
+            gen(cur_node->extend.functionnode.stmt);
+            return;
+        }
         case ND_DO_LOOP: {
             int cur_loop_idx = LOOP_CNT++;
             gen(cur_node->extend.loopnode.stmt);
@@ -219,25 +244,20 @@ void gen(Node *cur_node) {
     printf("  push rax\n");
 }
 
-void codegen(Node *node_list) {
+void codegen(NodeList *node_list) {
     printf(".intel_syntax noprefix\n");
     printf(".globl _main\n");
-    // TODO: support function
-    printf("_main:\n");
-    printf("  push rbp\n");
-    printf("  mov rbp, rsp\n");
 
-    // TODO: support function local var
-    printf("  sub rsp, %d\n", count_symbol_table(symbol_table_head) * 8);
+    while(node_list) {
+        gen(node_list->tree);
+        node_list = node_list->next;
+        printf("\n");
+    }
 
-    gen(node_list);
-    // return val
-    printf("  pop rax\n");
     // restore
     // TODO: if no return stmt then auto return
     /*
     printf("  mov rsp, rbp\n");
     printf("  pop rbp\n");
     */
-    printf("  ret\n");
 }

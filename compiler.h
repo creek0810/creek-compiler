@@ -29,6 +29,7 @@ typedef struct TerNode TerNode;
 typedef struct BiNode BiNode;
 typedef struct BlockNode BlockNode;
 typedef struct LoopNode LoopNode;
+typedef struct FunctionNode FunctionNode;
 typedef struct Node Node;
 typedef enum NodeType NodeType;
 typedef union NodeExtend NodeExtend;
@@ -82,6 +83,12 @@ struct LoopNode {
     Node *after_check;
 };
 
+struct FunctionNode {
+    Node *stmt;
+    SymbolTable *symbol_table;
+    char *name;
+};
+
 union NodeExtend{
 	int val; // ND_INT
     Node *expr; // unary operation (* &), return
@@ -89,6 +96,7 @@ union NodeExtend{
     TerNode ternode; // ter operation(if else)
     BlockNode blocknode; // compoud stmt
     LoopNode loopnode; // for while
+    FunctionNode functionnode; // for function declare
     char *name; // ident
 };
 
@@ -124,6 +132,8 @@ enum NodeType {
     ND_BLOCK, // {...}
     ND_LOOP, // for, while
     ND_DO_LOOP, // do while
+    ND_FUNCTION, // definition of function
+    ND_CALL, // function call
     /* jmp */
     ND_BREAK, // break
     ND_CONTINUE, // continue
@@ -149,10 +159,12 @@ Token *cur_token;
 SymbolTable *cur_symbol_table;
 SymbolTable *symbol_table_head;
 
+NodeList *function_list;
+
 /* main function */
 void tokenize(FILE*);
-Node *parse();
-void codegen(Node*);
+void parse();
+void codegen(NodeList*);
 Var *find_var(SymbolTable*,char*);
 int count_symbol_table(SymbolTable*);
 char *get_ident_name(Node*);

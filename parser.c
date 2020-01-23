@@ -2,6 +2,8 @@
 
 SymbolTable *cur_symbol_table = NULL;
 SymbolTable *symbol_table_head = NULL;
+NodeList *function_list = NULL;
+NodeList *cur_function_node = NULL;
 
 int var_offset = 0;
 
@@ -231,6 +233,15 @@ Node *add_node_loop(NodeType type, Node *init, Node *cur_cond, Node *cur_stmt, N
     return new_node;
 }
 
+Node *add_node_function(char *name, Node *stmt) {
+    Node *new_node = calloc(1, sizeof(Node));
+    new_node->type = ND_FUNCTION;
+    new_node->extend.functionnode.name = name;
+    new_node->extend.functionnode.stmt = stmt;
+    return new_node;
+}
+
+
 /* parse function */
 Node *stmt();
 Node *selection_stmt();
@@ -305,6 +316,13 @@ Node *primary() {
 */
 Node *postfix() {
     Node *cur_node = primary();
+    if(consume_op("(")) {
+        // suppose no arg
+        // TODO: support arg
+        cur_node = add_node_bi_op(ND_CALL, cur_node, NULL);
+        consume_op(")");
+        return cur_node;
+    }
     return cur_node;
 }
 
@@ -635,6 +653,32 @@ Node *expr_stmt() {
     return NULL;
 }
 
+/*
+<parameter-declaration> ::= {<declaration-specifier>}+ <declarator>
+                          | {<declaration-specifier>}+ <abstract-declarator>
+                          | {<declaration-specifier>}+
+*/
+Node *parameter_declaration() {
+
+}
+
+/*
+<parameter-list> ::= <parameter-declaration> ok
+                   | <parameter-list> , <parameter-declaration>
+*/
+Node *parameter_list() {
+    return parameter_declaration();
+}
+
+
+/*
+<parameter-type-list> ::= <parameter-list> ok
+                        | <parameter-list> , ...
+*/
+Node *parameter_type_list() {
+    return parameter_list();
+}
+
 /* <direct-declarator> ::= <identifier> ok
                       | ( <declarator> ) ok
                       | <direct-declarator> [ {<constant-expression>}? ]
@@ -642,15 +686,27 @@ Node *expr_stmt() {
                       | <direct-declarator> ( {<identifier>}* )
 */
 Node *direct_declarator() {
+    Node *node;
+    // next step
     if(cur_token->type == TK_IDENT) {
-        Node *node = add_node_ident(cur_token->str);
+        node = add_node_ident(cur_token->str);
         next_token();
-        return node;
-    }
-    if(consume_op("(")) {
-        Node *node = declarator();
+    } else if(consume_op("(")) {
+        node = declarator();
         consume_op(")");
-        return node;
+    }
+    // left recursive
+    while(true) {
+        if(consume_op("(")) {
+            // suppose no parameter only ()
+            // TODO: support parameter
+            consume_op(")");
+            return node;
+        } else if(consume_op("[")) {
+
+        } else {
+            return node;
+        }
     }
 }
 
@@ -818,7 +874,7 @@ Node *jump_stmt() {
         return add_node_unary(ND_BREAK, NULL);
     } else if(consume_keyword("return")) {
         if(consume_op(";")) {
-            return NULL;
+            return add_node_unary(ND_RETURN, NULL);
         }
         Node *cur_node = add_node_unary(ND_RETURN, expr());
         consume_op(";");
@@ -858,7 +914,6 @@ Node *selection_stmt() {
 */
 
 Node *stmt() {
-    // print_cur_token(cur_token);
     Node *cur_node = NULL;
     if(consume_op("{")) {
         return compound_stmt();
@@ -872,6 +927,64 @@ Node *stmt() {
     return expr_stmt();
 }
 
-Node *parse() {
-    return stmt();
+/*
+<function-definition> ::= {<declaration-specifier>}* <declarator> {<declaration>}* <compound-statement>
+*/
+Node *function_definition() {
+
+}
+
+/*
+<external-declaration> ::= <function-definition> ok
+                         | <declaration> ok
+
+<function-definition> ::= {<declaration-specifier>}*   <declarator> {<declaration>}* <compound-statement>
+
+<declaration> ::=  {<declaration-specifier>}+          {<init-declarator>}* ;
+
+<init-declarator> ::= <declarator>
+                    | <declarator> = <initializer>
+*/
+Node *external_declaration() {
+    // deal with <declaration-specifier>
+    // hack(suppose only int)
+    // TODO: support declaration-specifier
+    next_token();
+    Node *node = declarator();
+
+    if(consume_op("=")) { // declaration
+        node = add_node_bi_op(ND_ASSIGN, node, initializer());
+        node = add_node_bi_op(ND_DECLARE, NULL, node);
+    } else if(consume_op(";")) { // declaration
+        node = add_node_bi_op(ND_DECLARE, NULL, node);
+    } else if(consume_op("{")){ // function definition
+        // init function symbol table
+        cur_symbol_table = NULL;
+        symbol_table_head = NULL;
+        // compound_stmt();
+        node = add_node_function(node->extend.name, compound_stmt());
+    }
+    return node;
+}
+
+/*
+<translation-unit> ::= {<external-declaration>}* ok
+*/
+void translation_unit() {
+    while(cur_token->type != TK_EOF) {
+        Node *cur_tree_node = external_declaration();
+        NodeList *new_node = calloc(1, sizeof(NodeList));
+        new_node->tree = cur_tree_node;
+        if(function_list) {
+            cur_function_node->next = new_node;
+            cur_function_node = new_node;
+        } else {
+            function_list = new_node;
+            cur_function_node = new_node;
+        }
+    }
+}
+
+void parse() {
+    translation_unit();
 }

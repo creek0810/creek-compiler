@@ -9,6 +9,11 @@ def compile_and_run(test_data):
     result = os.system("./test")
     return result >> 8
 
+
+
+
+
+""" has symbol table & return stmt
 def test_loop():
     result = compile_and_run("""
     {
@@ -230,6 +235,8 @@ def test_lvar():
     assert result == 1
 
 """
+
+""" only expr
 def test_logic(compiler):
     # and
     result = compile_and_run("1&&2;")

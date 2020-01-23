@@ -65,6 +65,16 @@ void print_tree(Node *cur_node) {
         return;
     }
     switch(cur_node->type) {
+        /* function */
+        case ND_FUNCTION: {
+            printf("<function>\n");
+            printf("<name>%s</name>\n",cur_node->extend.functionnode.name);
+            printf("<stmt>\n");
+            print_tree(cur_node->extend.functionnode.stmt);
+            printf("</stmt>\n");
+            printf("</function>\n");
+            break;
+        }
         /* loop */
         case ND_DO_LOOP:
             printf("<do_loop>\n");

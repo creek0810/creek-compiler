@@ -15,12 +15,24 @@ int main(int argc, char *argv[]) {
     // print_token();
 
     cur_token = token_list;
-    Node *node = parse();
+    parse();
 
+
+
+    NodeList *cur_function = function_list;
     /* debug parser */
-    // print_tree(node);
+    /*
+    while(cur_function) {
+        print_tree(cur_function->tree);
+        cur_function = cur_function->next;
+    }
+    */
     // printf("-------\n", symbol_table_head);
     // print_symbol_table(symbol_table_head);
 
-    codegen(node);
+    /* start gen */
+    /*cur_function = function_list; */
+
+    codegen(function_list);
+
 }
