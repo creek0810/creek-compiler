@@ -29,12 +29,37 @@ void logic_pop() {
 
 
 /* gen function */
-void gen_addr(int delta) {
+void gen_addr(Var *cur_var) {
     printf("  mov rax, rbp\n");
-    printf("  sub rax, %d\n", delta);
+    printf("  sub rax, %d\n", cur_var->offset);
+    int aligned = cur_var->type->aligned;
+    if(aligned == 1) {
+        printf("  movsx rax, byte ptr [rax]\n");
+    }else if(aligned == 4) {
+        printf("  movsx rax, word ptr [rax]\n");
+    } else if(aligned == 8) {
+        printf("  mov rax, [rax]\n");
+    }
+    printf("  push rax\n");
+}
+
+void store(Var *cur_var) {
+    printf("  mov rax, rbp\n");
+    printf("  sub rax, %d\n", cur_var->offset);
+    printf("  pop rdx\n");
+    int aligned = cur_var->type->aligned;
+    if(aligned == 1) {
+        printf("  mov [rax], dl\n");
+    } else if(aligned == 4) {
+        printf("  mov [rax], edx\n");
+    } else if(aligned == 8) {
+        printf("  mov [rax], rdx\n");
+    }
+    printf("  push rdx\n"); // left association
 }
 
 void gen(Node *cur_node) {
+    // printf("type: %d\n", cur_node->type);
     if(cur_node == NULL) {
         return;
     }
@@ -107,8 +132,7 @@ void gen(Node *cur_node) {
         case ND_IDENT: {
             Var *cur_var = find_var(gen_symbol_table, cur_node->extend.name);
             if(cur_var) {
-                gen_addr(cur_var->offset);
-                printf("  push [rax]\n");
+                gen_addr(cur_var);
             } else {
                 printf("  not exist\n");
                 exit(1);
@@ -119,10 +143,7 @@ void gen(Node *cur_node) {
             gen(cur_node->extend.binode.rhs);
             Var *cur_var = find_var(gen_symbol_table, cur_node->extend.binode.lhs->extend.name);
             // calc lvar offset and store it into rax
-            gen_addr(cur_var->offset);
-            printf("  pop rdi\n");
-            printf("  mov [rax], rdi\n");
-            printf("  push rdi\n"); // left association
+            store(cur_var);
             return;
         }
         case ND_BLOCK: {

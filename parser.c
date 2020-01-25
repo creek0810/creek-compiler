@@ -42,12 +42,14 @@ Var *find_var(SymbolTable *symbol_table, char *name) {
     return NULL;
 }
 
-void add_var_to_symbol_table(char *name) {
+void add_var_to_symbol_table(char *name, Type *cur_type) {
     Var *new_var = calloc(1, sizeof(Var));
     new_var->name = name;
-    // TODO: support different width
-    new_var->offset = var_offset + 8;
-    var_offset += 8;
+    new_var->type = cur_type;
+    int padding = (new_var->offset) % cur_type->aligned;
+    new_var->offset = var_offset + padding + cur_type->size;
+    var_offset += new_var->offset;
+
     new_var->next = cur_symbol_table->var;
     cur_symbol_table->var = new_var;
 }
@@ -157,6 +159,31 @@ bool is_selection() {
     return false;
 }
 
+const type_keyword_len = 9;
+const char *type_keyword[9] = {
+    // "auto", "register", "static", "extern", "typedef",
+    "void", "char", "short", "int", "long", "float", "double",
+    "signed", "unsigned",
+};
+
+bool is_type() {
+    /*
+                   | <struct-or-union-specifier>
+                   | <enum-specifier>
+                   | <typedef-name>
+    <type-qualifier> ::= const
+                   | volatile
+    */
+   for(int i=0; i<type_keyword_len; i++) {
+       if(strlen(type_keyword[i]) == cur_token->len &&
+          strncmp(type_keyword[i], cur_token->str, cur_token->len) == 0) {
+              return true;
+        }
+   }
+   return false;
+}
+
+
 /* node function */
 Node *add_node_int(int val) {
     Node *new_node = calloc(1, sizeof(Node));
@@ -257,6 +284,21 @@ Node *primary();
 
 
 /* definition */
+
+Type *parse_type() {
+    // print_cur_token(cur_token);
+    // TODO: support multiletter type(ex. long long)
+    if(is_type()) {
+        if(consume_keyword("int")) {
+            return &INT_TYPE;
+        }
+        if(consume_keyword("char")) {
+            return &CHAR_TYPE;
+        }
+    }
+    return NULL;
+}
+
 
 /*
 <primary-expression> ::= <identifier> ok
@@ -730,32 +772,26 @@ Node *declarator() {
     return direct_declarator();
 }
 
-/* codegen ok
-<init-declarator> ::= <declarator> ok
-                    | <declarator> = <initializer> ok
+/* <declaration> ::=  {<declaration-specifier>}+ {<init-declarator>}* ;
+   <init-declarator> ::= <declarator> ok
+                       | <declarator> = <initializer> ok
 */
-Node *init_declarator() {
-    Node *node = declarator();
-    if(consume_op("=")) {
-        node = add_node_bi_op(ND_ASSIGN, node, initializer());
-    }
-    return node;
-}
-
-/* <declaration> ::=  {<declaration-specifier>}+ {<init-declarator>}* ; */
 Node *declaration() {
+    // TODO: support init several variable
+    Type *type = parse_type();
+    if(!type) {
+        // printf("expected type");
+        return NULL;
+    }
     Node *node = NULL;
     while(!consume_op(";")) {
-        // hack
-        //TODO: finish declaration-specifier
-        if(strncmp(cur_token->str, "int", 3) != 0)
-            return node;
-        next_token();
-        node = init_declarator();
-        // TODO: lhs should be type info
-        node = add_node_bi_op(ND_DECLARE, NULL, node);
+        Node *cur_ident = declarator();
+        // add to symbol table
+        add_var_to_symbol_table(cur_ident->extend.name, type);
+        if(consume_op("=")) {
+            node = add_node_bi_op(ND_ASSIGN, cur_ident, initializer());
+        }
     }
-    // establish declaration node;
     return node;
 }
 
@@ -770,15 +806,10 @@ Node *compound_stmt() {
     // init symbol_table;
     SymbolTable *symbol_table = push_symbol_table();
     while(!consume_op("}")) {
+        cur_symbol_table = symbol_table;
         Node *decl_stmt = NULL;
         // may be declaration or stmt
-        if((decl_stmt = declaration()) != NULL) {
-            // add to symbol table
-            cur_symbol_table = symbol_table;
-            char *name = get_ident_name(decl_stmt);
-            // printf("name: %s\n", name);
-            add_var_to_symbol_table(name);
-        } else {
+        if(!(decl_stmt = declaration())) {
             decl_stmt = stmt();
         }
         // append to node_list
@@ -911,43 +942,28 @@ Node *stmt() {
     return expr_stmt();
 }
 
-/*
-<function-definition> ::= {<declaration-specifier>}* <declarator> {<declaration>}* <compound-statement>
+/* codegen ok
+<function-definition> ::= {<declaration-specifier>}* <declarator> {<declaration>}* <compound-statement> ok
 */
 Node *function_definition() {
-
+    // TODO: support declaration-specifier
+    Type *cur_type = parse_type();
+    Node *node = declarator();
+    if(consume_op("{")) {
+        // init function symbol table
+        cur_symbol_table = NULL;
+        node = add_node_function(node->extend.name, compound_stmt(), var_offset);
+    }
+    return node;
 }
 
 /*
 <external-declaration> ::= <function-definition> ok
-                         | <declaration> ok
-
-<function-definition> ::= {<declaration-specifier>}*   <declarator> {<declaration>}* <compound-statement>
-
-<declaration> ::=  {<declaration-specifier>}+          {<init-declarator>}* ;
-
-<init-declarator> ::= <declarator>
-                    | <declarator> = <initializer>
+                         | <declaration>
 */
 Node *external_declaration() {
-    // deal with <declaration-specifier>
-    // hack(suppose only int)
-    // TODO: support declaration-specifier
-    next_token();
-    Node *node = declarator();
-
-    if(consume_op("=")) { // declaration
-        node = add_node_bi_op(ND_ASSIGN, node, initializer());
-        node = add_node_bi_op(ND_DECLARE, NULL, node);
-    } else if(consume_op(";")) { // declaration
-        node = add_node_bi_op(ND_DECLARE, NULL, node);
-    } else if(consume_op("{")){ // function definition
-        // init function symbol table
-        cur_symbol_table = NULL;
-        // compound_stmt();
-        node = add_node_function(node->extend.name, compound_stmt(), var_offset);
-    }
-    return node;
+    // TODO: support global var
+    return function_definition();
 }
 
 /*

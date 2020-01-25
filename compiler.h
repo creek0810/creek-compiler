@@ -37,6 +37,7 @@ typedef struct NodeList NodeList;
 typedef struct Var Var;
 typedef struct SymbolTable SymbolTable;
 
+typedef struct Type Type;
 /*
     cur_symbol_table
           |
@@ -48,6 +49,7 @@ struct Var {
     Var *next;
     char *name;
     int offset;
+    Type *type;
 };
 
 struct SymbolTable {
@@ -144,6 +146,21 @@ struct NodeList {
     Node *tree;
     NodeList *next;
 };
+
+/* type.c */
+
+
+struct Type {
+    int size;
+    int aligned;
+};
+
+Type INT_TYPE;
+Type CHAR_TYPE;
+
+
+
+
 
 // global
 Token *token_list;
