@@ -182,8 +182,20 @@ bool is_type() {
    }
    return false;
 }
+/*
+bool is_function() {
+    Type *cur_type = parse_type();
+    /*
+    <function-definition> ::= {<declaration-specifier>}* <declarator> {<declaration>}* <compound-statement> ok
+    */
 
-
+   /*
+   <declaration> ::=  {<declaration-specifier>}+ {<init-declarator>}* ;
+   <init-declarator> ::= <declarator> ok
+                       | <declarator> = <initializer> ok
+    
+}
+*/
 /* node function */
 Node *add_node_int(int val) {
     Node *new_node = calloc(1, sizeof(Node));
@@ -310,7 +322,9 @@ Node *primary() {
     Node *cur_node;
     // type to select action
     switch(cur_token->type) {
-        case TK_CONSTANT: {
+        case TK_INT:
+        case TK_FLOAT:
+        {
             // support different type
             cur_node = add_node_int(atoi(cur_token->str));
             next_token();
@@ -407,7 +421,7 @@ Node *multiplicative() {
             cur_node = add_node_bi_op(ND_MUL, cur_node, cast());
         } else if(consume_op("/")) {
             cur_node = add_node_bi_op(ND_DIV, cur_node, cast());
-        } else if(consume_op("\%")) {
+        } else if(consume_op("%")) {
             cur_node = add_node_bi_op(ND_MOD, cur_node, cast());
         } else {
             break;
@@ -504,12 +518,8 @@ Node *equality() {
 */
 Node *and_expr() {
     Node *cur_node = equality();
-    while(true) {
-        if(consume_op("&")) {
-            cur_node = add_node_bi_op(ND_BIT_AND, cur_node, equality());
-        } else {
-            break;
-        }
+    while(consume_op("&")) {
+        cur_node = add_node_bi_op(ND_BIT_AND, cur_node, equality());
     }
     return cur_node;
 }
@@ -520,12 +530,8 @@ Node *and_expr() {
 */
 Node *exclusive_or() {
     Node *cur_node = and_expr();
-    while(true) {
-        if(consume_op("^")) {
-            cur_node = add_node_bi_op(ND_BIT_XOR, cur_node, and_expr());
-        } else {
-            break;
-        }
+    while(consume_op("^")) {
+        cur_node = add_node_bi_op(ND_BIT_XOR, cur_node, and_expr());
     }
     return cur_node;
 }
@@ -536,12 +542,8 @@ Node *exclusive_or() {
 */
 Node *inclusive_or() {
     Node *cur_node = exclusive_or();
-    while(true) {
-        if(consume_op("|")) {
-            cur_node = add_node_bi_op(ND_BIT_OR, cur_node, exclusive_or());
-        } else {
-            break;
-        }
+    while(consume_op("|")) {
+        cur_node = add_node_bi_op(ND_BIT_OR, cur_node, exclusive_or());
     }
     return cur_node;
 }
@@ -552,12 +554,8 @@ Node *inclusive_or() {
 */
 Node *logic_and() {
     Node *cur_node = inclusive_or();
-    while(true) {
-        if(consume_op("&&")) {
-            cur_node = add_node_bi_op(ND_LOGIC_AND, cur_node, inclusive_or());
-        } else {
-            break;
-        }
+    while(consume_op("&&")) {
+        cur_node = add_node_bi_op(ND_LOGIC_AND, cur_node, inclusive_or());
     }
     return cur_node;
 }
@@ -568,12 +566,8 @@ Node *logic_and() {
 */
 Node *logic_or() {
     Node *cur_node = logic_and();
-    while(true) {
-        if(consume_op("||")) {
-            cur_node = add_node_bi_op(ND_LOGIC_OR, cur_node, logic_and());
-        } else {
-            break;
-        }
+    while(consume_op("||")) {
+        cur_node = add_node_bi_op(ND_LOGIC_OR, cur_node, logic_and());
     }
     return cur_node;
 }
@@ -613,7 +607,7 @@ Node *assign() {
         cur_node = add_node_bi_op(ND_ASSIGN, cur_node, calc);
         return cur_node;
     }
-    if(consume_op("\%=")) {
+    if(consume_op("%=")) {
         Node *calc = add_node_bi_op(ND_MOD, cur_node, assign());
         cur_node = add_node_bi_op(ND_ASSIGN, cur_node, calc);
         return cur_node;
@@ -691,7 +685,15 @@ Node *parameter_declaration() {
                    | <parameter-list> , <parameter-declaration>
 */
 Node *parameter_list() {
-    return parameter_declaration();
+    /*
+    Node *cur_node = parameter_declaration();
+    while(cur_node) {
+        add_node
+        cur_node = parameter_declaration()
+    }
+    return cur_node;
+    */
+   return parameter_declaration();
 }
 
 
@@ -874,8 +876,8 @@ Node *iteration_stmt() {
 
 
 /* <jump-statement> ::= goto <identifier> ;
-                   | continue ; ok
-                   | break ; ok
+                   | continue ; ok ok
+                   | break ; ok ok
                    | return {<expression>}? ; ok ok
 */
 Node *jump_stmt() {
@@ -962,14 +964,26 @@ Node *function_definition() {
                          | <declaration>
 */
 Node *external_declaration() {
+    /*
+    <function-definition> ::= {<declaration-specifier>}* <declarator> {<declaration>}* <compound-statement> ok
+    */
+
+   /*
+   <declaration> ::=  {<declaration-specifier>}+ {<init-declarator>}* ;
+   <init-declarator> ::= <declarator> ok
+                       | <declarator> = <initializer> ok
+    */
+
+
+
     // TODO: support global var
     return function_definition();
 }
 
-/*
-<translation-unit> ::= {<external-declaration>}* ok
-*/
-void translation_unit() {
+void parse() {
+    /*
+        <translation-unit> ::= {<external-declaration>}* ok
+    */
     while(cur_token->type != TK_EOF) {
         Node *cur_tree_node = external_declaration();
         NodeList *new_node = calloc(1, sizeof(NodeList));
@@ -982,8 +996,4 @@ void translation_unit() {
             cur_function_node = new_node;
         }
     }
-}
-
-void parse() {
-    translation_unit();
 }

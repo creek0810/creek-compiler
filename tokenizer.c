@@ -28,37 +28,27 @@ int keyword_cnt = 44;
 const char *keyword[44] = {
     "alignof",
     "auto",
-
     "break",
-
     "case",
     "char",
     "const",
     "continue",
-
     "default",
     "do",
     "double",
-
     "else",
     "enum",
     "extern",
-
     "float",
     "for",
-
     "goto",
-
     "if",
     "inline",
     "int",
-
     "long",
-
     "register",
     "restrict",
     "return",
-
     "short",
     "signed",
     "sizeof",
@@ -111,6 +101,11 @@ void add_token(char *str, int len, TokenType type) {
     }
 }
 
+bool is_string(char *str) {
+    return startswith(str, "u8\"") || startswith(str, "u\"") ||
+           startswith(str, "U\"") || startswith(str, "L\"") || startswith(str, "\"");
+}
+
 /* token type function */
 
 int punc(char *str, int base_loc, int str_len) {
@@ -153,23 +148,36 @@ int ident(char *str, int base_loc, int str_len) {
 
 int constant(char *str, int base_loc, int str_len) {
     int loc = base_loc + 1;
+    bool is_float = false;
     while(loc < str_len &&
           (isdigit(str[loc]) || str[loc] == '.')) {
+        if(str[loc] == '.') {
+            is_float = true;
+        }
         loc++;
     }
-    add_token(str + base_loc, loc - base_loc, TK_CONSTANT);
+    if(is_float) {
+        add_token(str + base_loc, loc - base_loc, TK_FLOAT);
+    } else {
+        add_token(str + base_loc, loc - base_loc, TK_INT);
+    }
     return loc;
 }
 
 int string_literal(char *str, int base_loc, int str_len) {
-    int loc = base_loc + 1;
+    int loc = base_loc;
+    bool has_found_start = false;
     while(loc < str_len) {
-        loc++;
         // check if not a escape "
-        if(str[loc] == '\"' && str[loc - 1] != '\\'){
+        if(has_found_start && str[loc] == '\"' && str[loc - 1] != '\\') {
             loc ++;
             break;
         }
+        if(!has_found_start && str[loc] == '\"') {
+            has_found_start = true;
+            loc++;
+        }
+        loc++;
     }
     add_token(str + base_loc, loc - base_loc, TK_STRING);
     return loc;
@@ -190,8 +198,15 @@ void tokenize(FILE *fp) {
 
             // inline comment
             if(startswith(str + cur_loc, "//")) {
-                // printf("inline comment: %s\n", str + cur_loc);
-                cur_loc = str_len;
+                break;
+            }
+
+            /* warning: need to check before ident
+                or u8" will be tokenized as a ident.
+            */
+            // string literal
+            if(is_string(str + cur_loc)) {
+                cur_loc = string_literal(str, cur_loc, str_len);
                 continue;
             }
 
@@ -204,12 +219,6 @@ void tokenize(FILE *fp) {
             // constant
             if(isdigit(str[cur_loc])) {
                 cur_loc = constant(str, cur_loc, str_len);
-                continue;
-            }
-
-            // string literal
-            if(str[cur_loc] == '\"') {
-                cur_loc = string_literal(str, cur_loc, str_len);
                 continue;
             }
 

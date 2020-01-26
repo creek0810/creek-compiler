@@ -10,7 +10,36 @@ def compile_and_run(test_data):
     return result >> 8
 
 
+def test_jmp():
+    result = compile_and_run("""
+    int main(){
+        int i=0;
+        int sum = 0;
+        int j = 10;
+        while(i < j) {
+            if(i == 5) {
+                i += 1;
+                continue;
+            }
+            sum += i;
+            i+=1;
+        }
+        return sum;
+    }""")
+    assert result == 40
 
+    result = compile_and_run("""
+    int main(){
+        int i=0;
+        while(i >= 0) {
+            if(i == 5) {
+                break;
+            }
+            i+=1;
+        }
+        return i;
+    }""")
+    assert result == 5
 
 
 def test_loop():

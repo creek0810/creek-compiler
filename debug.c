@@ -5,8 +5,11 @@ void print_cur_token(Token *it) {
             case TK_PUNC:
                 printf("punc: ");
                 break;
-            case TK_CONSTANT:
-                printf("constant: ");
+            case TK_INT:
+                printf("int: ");
+                break;
+            case TK_FLOAT:
+                printf("float: ");
                 break;
             case TK_STRING:
                 printf("string literal: ");

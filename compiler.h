@@ -11,7 +11,8 @@ enum TokenType{
     TK_PUNC,
     TK_IDENT,
     TK_KEYWORD,
-    TK_CONSTANT,
+    TK_INT,
+    TK_FLOAT,
     TK_STRING,
     TK_EOF,
 };

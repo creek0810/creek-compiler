@@ -65,6 +65,14 @@ void gen(Node *cur_node) {
     }
     // terminal node
     switch(cur_node->type) {
+        case ND_CONTINUE: {
+            printf("  jmp LOOP_START_%d\n", LOOP_CNT - 1);
+            return;
+        }
+        case ND_BREAK: {
+            printf("  jmp LOOP_END_%d\n", LOOP_CNT - 1);
+            return;
+        }
         case ND_CALL: {
             printf("  call %s\n", cur_node->extend.binode.lhs->extend.name);
             printf("  push rax\n");
