@@ -9,6 +9,16 @@ def compile_and_run(test_data):
     result = os.system("./test")
     return result >> 8
 
+def test_function_call():
+    result = compile_and_run("""
+        int test() {
+            return 10;
+        }
+        int main() {
+            return test();
+        }
+    """)
+    assert result == 10
 
 def test_jmp():
     result = compile_and_run("""

@@ -54,6 +54,16 @@ void add_var_to_symbol_table(char *name, Type *cur_type) {
     cur_symbol_table->var = new_var;
 }
 
+Var *add_var_to_varlist(Var *cur_var, char *name, Type *cur_type) {
+    Var *new_var = calloc(1, sizeof(Var));
+    new_var->name = name;
+    new_var->type = cur_type;
+    int padding = (new_var->offset) % cur_type->aligned;
+    new_var->offset = cur_var->offset + padding + cur_type->size;
+    cur_var->next = new_var;
+    return new_var;
+}
+
 /* help function */
 char *get_ident_name(Node *cur_node) {
     cur_node = cur_node->extend.binode.rhs;
@@ -182,20 +192,8 @@ bool is_type() {
    }
    return false;
 }
-/*
-bool is_function() {
-    Type *cur_type = parse_type();
-    /*
-    <function-definition> ::= {<declaration-specifier>}* <declarator> {<declaration>}* <compound-statement> ok
-    */
 
-   /*
-   <declaration> ::=  {<declaration-specifier>}+ {<init-declarator>}* ;
-   <init-declarator> ::= <declarator> ok
-                       | <declarator> = <initializer> ok
-    
-}
-*/
+
 /* node function */
 Node *add_node_int(int val) {
     Node *new_node = calloc(1, sizeof(Node));
@@ -253,17 +251,19 @@ Node *add_node_loop(NodeType type, Node *init, Node *cur_cond, Node *cur_stmt, N
     return new_node;
 }
 
-Node *add_node_function(char *name, Node *stmt, int memory) {
+Node *add_node_function(Type *return_type, char *name, Node *stmt, int memory) {
     Node *new_node = calloc(1, sizeof(Node));
     new_node->type = ND_FUNCTION;
     new_node->extend.functionnode.name = name;
     new_node->extend.functionnode.stmt = stmt;
     new_node->extend.functionnode.memory = memory;
+    new_node->extend.functionnode.return_type = return_type;
     return new_node;
 }
 
 
-/* parse function */
+/* parse function declaration */
+bool is_func_def();
 Node *stmt();
 Node *selection_stmt();
 Node *jump_stmt();
@@ -271,7 +271,7 @@ Node *iteration_stmt(); // ok
 Node *compound_stmt(); // ok
 Node *declaration();
 Node *direct_declarator();
-Node *declaration_specifier();
+Type *declaration_specifier();
 Node *declarator();
 Node *init_declarator(); // ok
 Node *initializer();
@@ -295,20 +295,18 @@ Node *postfix();
 Node *primary();
 
 
-/* definition */
+/* try to parse function definition */
 
-Type *parse_type() {
-    // print_cur_token(cur_token);
-    // TODO: support multiletter type(ex. long long)
-    if(is_type()) {
-        if(consume_keyword("int")) {
-            return &INT_TYPE;
-        }
-        if(consume_keyword("char")) {
-            return &CHAR_TYPE;
-        }
+bool is_func_def() {
+    bool flag = true;
+    Token *copy_token = cur_token;
+    Type *type = declaration_specifier();
+    Node *decl = declarator();
+    if(consume_op("=") || consume_op(";")) { // is init-declarator
+        flag = false;
     }
-    return NULL;
+    cur_token = copy_token;
+    return flag;
 }
 
 
@@ -676,7 +674,7 @@ Node *expr_stmt() {
                           | {<declaration-specifier>}+ <abstract-declarator>
                           | {<declaration-specifier>}+
 */
-Node *parameter_declaration() {
+Var *parameter_declaration() {
 
 }
 
@@ -684,16 +682,12 @@ Node *parameter_declaration() {
 <parameter-list> ::= <parameter-declaration> ok
                    | <parameter-list> , <parameter-declaration>
 */
-Node *parameter_list() {
-    /*
-    Node *cur_node = parameter_declaration();
+Var *parameter_list() {
+    Var *cur_node = parameter_declaration();
     while(cur_node) {
-        add_node
-        cur_node = parameter_declaration()
+        cur_node = parameter_declaration();
     }
     return cur_node;
-    */
-   return parameter_declaration();
 }
 
 
@@ -701,7 +695,7 @@ Node *parameter_list() {
 <parameter-type-list> ::= <parameter-list> ok
                         | <parameter-list> , ...
 */
-Node *parameter_type_list() {
+Var *parameter_type_list() {
     return parameter_list();
 }
 
@@ -740,10 +734,7 @@ Node *direct_declarator() {
 <declaration-specifier> ::= <storage-class-specifier>
                           | <type-specifier>
                           | <type-qualifier>
-*/
-Node *declaration_specifier() {
-    /*
-    <type-specifier> ::= void
+<type-specifier> ::= void
                    | char
                    | short
                    | int
@@ -755,9 +746,26 @@ Node *declaration_specifier() {
                    | <struct-or-union-specifier>
                    | <enum-specifier>
                    | <typedef-name>
-    */
-   // TODO: support another type
 
+<storage-class-specifier> ::= auto
+                            | register
+                            | static
+                            | extern
+                            | typedef
+<type-qualifier> ::= const
+                   | volatile
+*/
+Type *declaration_specifier() {
+    // TODO: support more type
+    if(is_type()) {
+        if(consume_keyword("int")) {
+            return &INT_TYPE;
+        }
+        if(consume_keyword("char")) {
+            return &CHAR_TYPE;
+        }
+    }
+    return NULL;
 }
 
 /*
@@ -780,7 +788,7 @@ Node *declarator() {
 */
 Node *declaration() {
     // TODO: support init several variable
-    Type *type = parse_type();
+    Type *type = declaration_specifier();
     if(!type) {
         // printf("expected type");
         return NULL;
@@ -949,35 +957,25 @@ Node *stmt() {
 */
 Node *function_definition() {
     // TODO: support declaration-specifier
-    Type *cur_type = parse_type();
+    Type *return_type = declaration_specifier();
     Node *node = declarator();
     if(consume_op("{")) {
         // init function symbol table
         cur_symbol_table = NULL;
-        node = add_node_function(node->extend.name, compound_stmt(), var_offset);
+        node = add_node_function(return_type, node->extend.name, compound_stmt(), var_offset);
     }
     return node;
 }
 
 /*
 <external-declaration> ::= <function-definition> ok
-                         | <declaration>
+                         | <declaration> ok
 */
 Node *external_declaration() {
-    /*
-    <function-definition> ::= {<declaration-specifier>}* <declarator> {<declaration>}* <compound-statement> ok
-    */
-
-   /*
-   <declaration> ::=  {<declaration-specifier>}+ {<init-declarator>}* ;
-   <init-declarator> ::= <declarator> ok
-                       | <declarator> = <initializer> ok
-    */
-
-
-
-    // TODO: support global var
-    return function_definition();
+    if(is_func_def()) {
+        return function_definition();
+    }
+    return declaration();
 }
 
 void parse() {

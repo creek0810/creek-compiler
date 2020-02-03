@@ -83,6 +83,7 @@ struct FunctionNode {
     SymbolTable *symbol_table;
     int memory;
     char *name;
+    Type *return_type;
 };
 
 union NodeExtend{
