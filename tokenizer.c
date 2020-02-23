@@ -1,7 +1,16 @@
 #include "compiler.h"
+Token *token_list = NULL;
+Token *cur_token = NULL;
+
 
 /* warning: op need to be sorted by letters */
 /* check more letters op first */
+typedef struct CharTypeMap CharTypeMap;
+struct CharTypeMap {
+    char *val;
+    TokenType type;
+};
+
 int punc_cnt= 54;
 const char *punc_table[54] = {
     // more than 3 letters
@@ -25,52 +34,54 @@ const char *punc_table[54] = {
 };
 
 int keyword_cnt = 44;
-const char *keyword[44] = {
-    "alignof",
-    "auto",
-    "break",
-    "case",
-    "char",
-    "const",
-    "continue",
-    "default",
-    "do",
-    "double",
-    "else",
-    "enum",
-    "extern",
-    "float",
-    "for",
-    "goto",
-    "if",
-    "inline",
-    "int",
-    "long",
-    "register",
-    "restrict",
-    "return",
-    "short",
-    "signed",
-    "sizeof",
-    "static",
-    "struct",
-    "switch",
-    "typedef",
-    "union",
-    "unsigned",
-    "void",
-    "volatile",
-    "while",
-    "_Alignas",
-    "_Atomic",
-    "_Bool",
-    "_Complex",
-    "_Generic",
-    "_Imaginary",
-    "_Noreturn",
-    "_Static_assert",
-    "_Thread_loca",
+const CharTypeMap keywords[44] = {
+    {"alignof", TK_KW_UNDEFINED},
+    {"auto", TK_KW_UNDEFINED},
+    {"break", TK_KW_BREAK},
+    {"case", TK_KW_UNDEFINED},
+    {"char", TK_KW_CHAR},
+    {"const", TK_KW_UNDEFINED},
+    {"continue", TK_KW_CONTINUE},
+    {"default", TK_KW_UNDEFINED},
+    {"do", TK_KW_DO},
+    {"double", TK_KW_DOUBLE},
+    {"else", TK_KW_ELSE},
+    {"enum", TK_KW_UNDEFINED},
+    {"extern", TK_KW_UNDEFINED},
+    {"float", TK_KW_FLOAT},
+    {"for", TK_KW_FOR},
+    {"goto", TK_KW_GOTO},
+    {"if", TK_KW_IF},
+    {"inline", TK_KW_UNDEFINED},
+    {"int", TK_KW_INT},
+    {"long", TK_KW_UNDEFINED},
+    {"register", TK_KW_UNDEFINED},
+    {"restrict", TK_KW_UNDEFINED},
+    {"return", TK_KW_RETURN},
+    {"short", TK_KW_SHORT},
+    {"signed", TK_KW_SIGNED},
+    {"sizeof", TK_KW_UNDEFINED},
+    {"static", TK_KW_UNDEFINED},
+    {"struct", TK_KW_UNDEFINED},
+    {"switch", TK_KW_SWITCH},
+    {"typedef", TK_KW_UNDEFINED},
+    {"union", TK_KW_UNDEFINED},
+    {"unsigned", TK_KW_UNSIGNED},
+    {"void", TK_KW_VOID},
+    {"volatile", TK_KW_UNDEFINED},
+    {"while", TK_KW_WHILE},
+    {"_Alignas", TK_KW_UNDEFINED},
+    {"_Atomic", TK_KW_UNDEFINED},
+    {"_Bool", TK_KW_UNDEFINED},
+    {"_Complex", TK_KW_UNDEFINED},
+    {"_Generic", TK_KW_UNDEFINED},
+    {"_Imaginary", TK_KW_UNDEFINED},
+    {"_Noreturn", TK_KW_UNDEFINED},
+    {"_Static_assert", TK_KW_UNDEFINED},
+    {"_Thread_loca", TK_KW_UNDEFINED},
 };
+
+
 
 /* help function */
 
@@ -133,11 +144,11 @@ int ident(char *str, int base_loc, int str_len) {
     }
     // check whether is keyword or identifer
     for(int i=0; i<keyword_cnt; i++) {
-        int keyword_len = strlen(keyword[i]);
+        int keyword_len = strlen(keywords[i].val);
         // is keyword
         if(keyword_len == (loc - base_loc) &&
-           strncmp(str + base_loc, keyword[i], keyword_len) == 0) {
-            add_token(str + base_loc, keyword_len, TK_KEYWORD);
+           strncmp(str + base_loc, keywords[i].val, keyword_len) == 0) {
+            add_token(str + base_loc, keyword_len, keywords[i].type);
             return loc;
         }
     }
@@ -183,7 +194,7 @@ int string_literal(char *str, int base_loc, int str_len) {
     return loc;
 }
 
-void tokenize(FILE *fp) {
+Token *tokenize(FILE *fp) {
     // the max len of a line should not exceed 5000!
     char str[5000] = {0};
     while(fgets(str, 5000, fp) != NULL) {
@@ -227,4 +238,5 @@ void tokenize(FILE *fp) {
         }
     }
     add_token("", 0, TK_EOF);
+    return token_list;
 }

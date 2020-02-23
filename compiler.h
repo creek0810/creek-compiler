@@ -8,9 +8,33 @@ typedef struct Token Token;
 typedef enum TokenType TokenType;
 
 enum TokenType{
+    // kw token
+    TK_KW_BREAK,
+    TK_KW_CHAR,
+    TK_KW_CONTINUE,
+    TK_KW_ELSE,
+    TK_KW_FOR,
+    TK_KW_IF,
+    TK_KW_INT,
+    TK_KW_RETURN,
+    TK_KW_WHILE,
+    // TODO: following token haven't been supported
+    TK_KW_SIGNED,
+    TK_KW_UNSIGNED,
+    TK_KW_DOUBLE,
+    TK_KW_FLOAT,
+    TK_KW_SHORT,
+    TK_KW_VOID,
+
+    TK_KW_GOTO,
+    TK_KW_SWITCH,
+    TK_KW_DO,
+    TK_KW_CASE,
+
+    TK_KW_UNDEFINED, // to specified the token that is not supported
+    // another
     TK_PUNC,
     TK_IDENT,
-    TK_KEYWORD,
     TK_INT,
     TK_FLOAT,
     TK_STRING,
@@ -150,8 +174,6 @@ struct NodeList {
 };
 
 /* type.c */
-
-
 struct Type {
     int size;
     int aligned;
@@ -160,22 +182,11 @@ struct Type {
 Type INT_TYPE;
 Type CHAR_TYPE;
 
-
-
-
-
-// global
-Token *token_list;
-Token *cur_token;
-
-SymbolTable *cur_symbol_table;
-
-NodeList *function_list;
-
 /* main function */
-void tokenize(FILE*);
-void parse();
-void codegen(NodeList*);
+Token *tokenize(FILE*);
+NodeList *parse(Token*);
+SymbolTable *init_table();
+void codegen(NodeList*, SymbolTable*);
 Var *find_var(SymbolTable*,char*);
 int count_symbol_table(SymbolTable*);
 char *get_ident_name(Node*);

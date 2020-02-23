@@ -1,5 +1,6 @@
 #include "compiler.h"
 
+Token *cur_token;
 SymbolTable *cur_symbol_table = NULL;
 NodeList *function_list = NULL;
 NodeList *cur_function_node = NULL;
@@ -65,6 +66,19 @@ Var *add_var_to_varlist(Var *cur_var, char *name, Type *cur_type) {
 }
 
 /* help function */
+void append_node_list(NodeList *vec, Node *new_node) {
+    if(vec->tree == NULL) {
+        vec->tree = new_node;
+    } else {
+        // alloc new node list
+        NodeList *new_node_list = calloc(1, sizeof(NodeList));
+        new_node_list->tree = new_node;
+        // find the latest node
+        while(vec->next != NULL) vec = vec->next;
+        vec->next = new_node_list;
+    }
+}
+
 char *get_ident_name(Node *cur_node) {
     cur_node = cur_node->extend.binode.rhs;
     if(cur_node->type == ND_ASSIGN) {
@@ -72,8 +86,18 @@ char *get_ident_name(Node *cur_node) {
     }
     return cur_node->extend.name;
 }
+
 void next_token() {
     cur_token = cur_token->next;
+}
+
+bool next_is(char *str) {
+    if (strlen(str) == cur_token->len &&
+        strncmp(cur_token->str, str, cur_token->len) == 0) {
+        cur_token = cur_token->next;
+        return true;
+    }
+    return false;
 }
 
 bool consume_op(char *str) {
@@ -86,10 +110,8 @@ bool consume_op(char *str) {
     return false;
 }
 
-bool consume_keyword(char *str) {
-    if( cur_token->type == TK_KEYWORD &&
-        cur_token->len == strlen(str) &&
-        strncmp(cur_token->str, str, cur_token->len) == 0) {
+bool consume_keyword(TokenType type) {
+    if( cur_token->type == type) {
         cur_token = cur_token->next;
         return true;
     }
@@ -120,54 +142,7 @@ int is_unary_operator(){
     return -1;
 }
 
-const int jump_keyword_len = 4;
-const char *jump_keyword[4] = {
-    "goto", "continue",
-    "break", "return"
-};
-bool is_jump() {
-    if(cur_token->type == TK_KEYWORD) {
-        for(int i=0; i<jump_keyword_len; i++) {
-            if(strlen(jump_keyword[i]) == cur_token->len &&
-               strncmp(cur_token->str, jump_keyword[i], cur_token->len) == 0) {
-                   return true;
-            }
-        }
-    }
-    return false;
-}
 
-const int iteration_keyword_len = 3;
-const char *iteration_keyword[3] = {
-    "do", "while", "for"
-};
-bool is_iteration() {
-    if(cur_token->type == TK_KEYWORD) {
-        for(int i=0; i<iteration_keyword_len; i++) {
-            if(strlen(iteration_keyword[i]) == cur_token->len &&
-               strncmp(cur_token->str, iteration_keyword[i], cur_token->len) == 0) {
-                   return true;
-            }
-        }
-    }
-    return false;
-}
-
-const int selection_keyword_len = 2;
-const char *selection_keyword[2] = {
-    "if", "switch"
-};
-bool is_selection() {
-    if(cur_token->type == TK_KEYWORD) {
-        for(int i=0; i<selection_keyword_len; i++) {
-            if(strlen(selection_keyword[i]) == cur_token->len &&
-               strncmp(cur_token->str, selection_keyword[i], cur_token->len) == 0) {
-                   return true;
-            }
-        }
-    }
-    return false;
-}
 
 const type_keyword_len = 9;
 const char *type_keyword[9] = {
@@ -264,6 +239,7 @@ Node *add_node_function(Type *return_type, char *name, Node *stmt, int memory) {
 
 /* parse function declaration */
 bool is_func_def();
+NodeList *translation_unit();
 Node *stmt();
 Node *selection_stmt();
 Node *jump_stmt();
@@ -746,7 +722,6 @@ Node *direct_declarator() {
                    | <struct-or-union-specifier>
                    | <enum-specifier>
                    | <typedef-name>
-
 <storage-class-specifier> ::= auto
                             | register
                             | static
@@ -756,16 +731,56 @@ Node *direct_declarator() {
                    | volatile
 */
 Type *declaration_specifier() {
-    // TODO: support more type
-    if(is_type()) {
-        if(consume_keyword("int")) {
-            return &INT_TYPE;
+    // void(1) char(2) short(4) int(8) float(16)
+    // double(32) signed(64) unsigned(128)
+    // TODO: deal with long(it may be long long)
+    long long type_bit_set = 0;
+    while(true) {
+        NodeType cur_type = cur_token->type;
+        bool is_type = true;
+        switch(cur_type) {
+            case TK_KW_VOID:
+                type_bit_set += 1;
+                break;
+            case TK_KW_CHAR:
+                type_bit_set += 2;
+                break;
+            case TK_KW_SHORT:
+                type_bit_set += 4;
+                break;
+            case TK_KW_INT:
+                type_bit_set += 8;
+                break;
+            case TK_KW_FLOAT:
+                type_bit_set += 16;
+                break;
+            case TK_KW_DOUBLE:
+                type_bit_set += 32;
+                break;
+            case TK_KW_SIGNED:
+                type_bit_set += 64;
+                break;
+            case TK_KW_UNSIGNED:
+                type_bit_set += 128;
+                break;
+            default:
+                is_type = false;
+                break;
         }
-        if(consume_keyword("char")) {
-            return &CHAR_TYPE;
-        }
+        if(is_type) next_token();
+        else break;
     }
-    return NULL;
+    switch(type_bit_set) {
+        case 2:
+            return &CHAR_TYPE;
+        case 8:
+        case 64:
+        case 72:
+            return &INT_TYPE;
+        default:
+            // printf("unknown type %lld\n", type_bit_set);
+            return NULL;
+    }
 }
 
 /*
@@ -809,7 +824,7 @@ Node *declaration() {
 <compound-statement> ::= { {<declaration>}* {<statement>}*  ok}
 */
 Node *compound_stmt() {
-    /* warning: "{" has been consumed at stmt stage */
+    consume_op("{");
     NodeList *node_list = NULL;
     NodeList *cur_node;
 
@@ -845,14 +860,14 @@ Node *compound_stmt() {
                         | for ( {<expression>}? ; {<expression>}? ; {<expression>}? ) <statement> ok ok
 */
 Node *iteration_stmt() {
-    if(consume_keyword("while")) {
+    if(consume_keyword(TK_KW_WHILE)) {
         consume_op("(");
         Node *cur_condition = expr();
         consume_op(")");
         Node *cur_stmt = stmt();
         return add_node_loop(ND_LOOP, NULL, cur_condition, cur_stmt, NULL);
     }
-    if(consume_keyword("for")) {
+    if(consume_keyword(TK_KW_FOR)) {
         Node *init = NULL, *cur_cond = NULL, *after = NULL;
         consume_op("(");
         if(!consume_op(";")) {
@@ -871,9 +886,9 @@ Node *iteration_stmt() {
         }
         return add_node_loop(ND_LOOP, init, cur_cond, stmt(), after);
     }
-    if(consume_keyword("do")) {
+    if(consume_keyword(TK_KW_DO)) {
         Node *cur_stmt = stmt();
-        consume_keyword("while");
+        consume_keyword(TK_KW_WHILE);
         consume_op("(");
         Node *cur_cond = expr();
         consume_op(")");
@@ -889,15 +904,15 @@ Node *iteration_stmt() {
                    | return {<expression>}? ; ok ok
 */
 Node *jump_stmt() {
-    if(consume_keyword("goto")) {
+    if(consume_keyword(TK_KW_GOTO)) {
         consume_op(";");
-    } else if (consume_keyword("continue")) {
+    } else if (consume_keyword(TK_KW_CONTINUE)) {
         consume_op(";");
         return add_node_unary(ND_CONTINUE, NULL);
-    } else if(consume_keyword("break")) {
+    } else if(consume_keyword(TK_KW_BREAK)) {
         consume_op(";");
         return add_node_unary(ND_BREAK, NULL);
-    } else if(consume_keyword("return")) {
+    } else if(consume_keyword(TK_KW_RETURN)) {
         if(consume_op(";")) {
             return add_node_unary(ND_RETURN, NULL);
         }
@@ -908,90 +923,90 @@ Node *jump_stmt() {
 }
 
 /*
-<selection-statement> ::= if ( <expression> ) <statement> ok
-                        | if ( <expression> ) <statement> else <statement> ok
-                        | switch ( <expression> ) <statement>
+selection-statement ::= "if" "(" expression ")" statement ("else" statement)?
+                      | "switch" "(" expression ")" statement
 */
 Node *selection_stmt() {
-    if(consume_keyword("if")) {
+    if(consume_keyword(TK_KW_IF)) {
         consume_op("(");
         Node *cond = expr();
         consume_op(")");
         Node *if_true = stmt();
-        if(consume_keyword("else")) {
-            return add_node_ter_op(cond, if_true, stmt());
-        }
-        return add_node_ter_op(cond, if_true, NULL);
+        Node *if_false = consume_keyword(TK_KW_ELSE) ? stmt() : NULL;
+        return add_node_ter_op(cond, if_true, if_false);
     }
-    if(consume_keyword("switch")) {
+    if(consume_keyword(TK_KW_SWITCH)) {
         // TODO: support switch
     }
     return NULL;
 }
 
 /*
-<statement> ::= <labeled-statement>
-              | <expression-statement> ok
-              | <compound-statement> ok
-              | <selection-statement> ok
-              | <iteration-statement> ok
-              | <jump-statement> ok
+statement ::= labeled-statement
+            | expression-statement ok
+            | compound-statement ok
+            | selection-statement ok
+            | iteration-statement ok
+            | jump-statement ok
 */
-
 Node *stmt() {
-    Node *cur_node = NULL;
-    if(consume_op("{")) {
-        return compound_stmt();
-    } else if(is_jump()) {
-        return jump_stmt();
-    } else if(is_selection()) {
-        return selection_stmt();
-    } else if(is_iteration()) {
-        return iteration_stmt();
+    TokenType cur_type = cur_token->type;
+    switch(cur_type) {
+        // selection stmt
+        case TK_KW_IF:
+        case TK_KW_CASE:
+            return selection_stmt();
+        // iteration stmt
+        case TK_KW_WHILE:
+        case TK_KW_DO:
+        case TK_KW_FOR:
+            return iteration_stmt();
+        // jmp stmt
+        case TK_KW_GOTO:
+        case TK_KW_CONTINUE:
+        case TK_KW_BREAK:
+        case TK_KW_RETURN:
+            return jump_stmt();
+        default: {
+            // comp stmt
+            if(next_is("{")) return compound_stmt();
+            // expr stmt
+            else return expr_stmt();
+        }
     }
-    return expr_stmt();
 }
 
 /* codegen ok
-<function-definition> ::= {<declaration-specifier>}* <declarator> {<declaration>}* <compound-statement> ok
+function-definition ::=
+    declaration-specifiers declarator (declaration)* compound-statement
 */
 Node *function_definition() {
     // TODO: support declaration-specifier
     Type *return_type = declaration_specifier();
     Node *node = declarator();
     if(consume_op("{")) {
-        // init function symbol table
-        cur_symbol_table = NULL;
         node = add_node_function(return_type, node->extend.name, compound_stmt(), var_offset);
     }
     return node;
 }
 
 /*
-<external-declaration> ::= <function-definition> ok
-                         | <declaration> ok
+    translation-unit ::= (function-definition | declaration)+
 */
-Node *external_declaration() {
-    if(is_func_def()) {
-        return function_definition();
-    }
-    return declaration();
-}
-
-void parse() {
-    /*
-        <translation-unit> ::= {<external-declaration>}* ok
-    */
+NodeList *translation_unit() {
+    NodeList *result = calloc(1, sizeof(NodeList));
     while(cur_token->type != TK_EOF) {
-        Node *cur_tree_node = external_declaration();
-        NodeList *new_node = calloc(1, sizeof(NodeList));
-        new_node->tree = cur_tree_node;
-        if(function_list) {
-            cur_function_node->next = new_node;
-            cur_function_node = new_node;
-        } else {
-            function_list = new_node;
-            cur_function_node = new_node;
-        }
+        if(is_func_def()) append_node_list(result, function_definition());
+        else append_node_list(result, declaration());
     }
+    return result;
+}
+SymbolTable *init_table() {
+    return push_symbol_table();
+}
+NodeList *parse(Token *token_list) {
+    // init token stream
+    cur_token = token_list;
+    // start parse by top level
+    return translation_unit();
 }

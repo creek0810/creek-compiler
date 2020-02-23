@@ -271,10 +271,12 @@ void gen(Node *cur_node) {
     printf("  push rax\n");
 }
 
-void codegen(NodeList *node_list) {
+void codegen(NodeList *node_list, SymbolTable *global_table) {
+    // store global symbol table
+    gen_symbol_table = global_table;
+
     printf(".intel_syntax noprefix\n");
     printf(".globl _main\n");
-
     while(node_list) {
         gen(node_list->tree);
         node_list = node_list->next;

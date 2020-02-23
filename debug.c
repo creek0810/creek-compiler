@@ -14,20 +14,20 @@ void print_cur_token(Token *it) {
             case TK_STRING:
                 printf("string literal: ");
                 break;
-            case TK_KEYWORD:
-                printf("keyword: ");
-                break;
             case TK_IDENT:
                 printf("ident: ");
                 break;
             case TK_EOF:
                 printf("eof\n");
                 return;
+            default:
+                printf("keyword: ");
+                break;
         }
         printf("%s %d\n", it->str, it->len);
 }
 
-void print_token() {
+void print_token(Token *token_list) {
     Token *it = token_list;
     while(it) {
        print_cur_token(it);

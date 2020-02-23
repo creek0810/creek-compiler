@@ -1,4 +1,5 @@
 import os
+import pytest
 
 
 def compile_and_run(test_data):
@@ -50,7 +51,6 @@ def test_jmp():
         return i;
     }""")
     assert result == 5
-
 
 def test_loop():
     result = compile_and_run("""
