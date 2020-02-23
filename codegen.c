@@ -1,6 +1,7 @@
 #include "compiler.h"
 
 SymbolTable *gen_symbol_table;
+NodeList *arg_symbol_table;
 int IF_CNT = 0;
 int LOOP_CNT = 0;
 
@@ -29,7 +30,7 @@ void logic_pop() {
 
 
 /* gen function */
-void gen_addr(Var *cur_var) {
+void gen_local_addr(Var *cur_var) {
     printf("  mov rax, rbp\n");
     printf("  sub rax, %d\n", cur_var->offset);
     int aligned = cur_var->type->aligned;
@@ -42,6 +43,18 @@ void gen_addr(Var *cur_var) {
     }
     printf("  push rax\n");
 }
+
+void gen_parameter_addr(int idx) {
+    printf("  mov rax, rbp\n");
+    printf("  add rax, %d\n", (1 + idx) * 8);
+    printf("  mov rax, [rax]\n");
+    printf("  push rax\n");
+}
+
+// TODO: finish it!
+void gen_global_addr(Var *cur_var) {
+}
+
 
 void store(Var *cur_var) {
     printf("  mov rax, rbp\n");
@@ -74,12 +87,21 @@ void gen(Node *cur_node) {
             return;
         }
         case ND_CALL: {
+            // push arg
+            NodeList *cur_list = cur_node->extend.callnode.arg_list;
+            while(cur_list) {
+                gen(cur_list->tree);
+                cur_list = cur_list->next;
+            }
+
+            // start call
             printf("  call %s\n", cur_node->extend.callnode.callee->extend.name);
             printf("  push rax\n");
             return;
         }
-        case ND_FUNCTION: {
+        case ND_FUNC: {
             // TODO: support function
+            arg_symbol_table = cur_node->extend.functionnode.arg_list;
             if( strlen(cur_node->extend.functionnode.name) == 4 &&
                 strncmp(cur_node->extend.functionnode.name, "main", 4) == 0
                 ) {
@@ -140,10 +162,31 @@ void gen(Node *cur_node) {
         case ND_IDENT: {
             Var *cur_var = find_var(gen_symbol_table, cur_node->extend.name);
             if(cur_var) {
-                gen_addr(cur_var);
+                gen_local_addr(cur_var);
             } else {
-                printf("  not exist\n");
-                exit(1);
+                // find in arg table
+                NodeList *arg_list = arg_symbol_table;
+                int idx = 1;
+                bool found = false;
+                char *tar_var_name = cur_node->extend.name;
+                int tar_len = strlen(tar_var_name);
+                while(arg_list) {
+                    char *cur_var_name = arg_list->tree->extend.declnode.name;
+                    if(tar_len == strlen(cur_var_name) &&
+                        strncmp(tar_var_name, cur_var_name, tar_len) == 0) {
+                        found = true;
+                        break;
+                    }
+                    arg_list = arg_list->next;
+                    idx ++;
+                }
+
+                if(found) {
+                    gen_parameter_addr(idx);
+                } else {
+                    printf("  not exist\n");
+                    exit(1);
+                }
             }
             return;
         }

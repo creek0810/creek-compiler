@@ -43,7 +43,7 @@ Var *find_var(SymbolTable *symbol_table, char *name) {
     return NULL;
 }
 
-void add_var_to_symbol_table(char *name, Type *cur_type) {
+void add_var_to_symbol_table(SymbolTable* tar_table, char *name, Type *cur_type) {
     Var *new_var = calloc(1, sizeof(Var));
     new_var->name = name;
     new_var->type = cur_type;
@@ -51,18 +51,8 @@ void add_var_to_symbol_table(char *name, Type *cur_type) {
     new_var->offset = var_offset + padding + cur_type->size;
     var_offset += new_var->offset;
 
-    new_var->next = cur_symbol_table->var;
-    cur_symbol_table->var = new_var;
-}
-
-Var *add_var_to_varlist(Var *cur_var, char *name, Type *cur_type) {
-    Var *new_var = calloc(1, sizeof(Var));
-    new_var->name = name;
-    new_var->type = cur_type;
-    int padding = (new_var->offset) % cur_type->aligned;
-    new_var->offset = cur_var->offset + padding + cur_type->size;
-    cur_var->next = new_var;
-    return new_var;
+    new_var->next = tar_table->var;
+    tar_table->var = new_var;
 }
 
 /* help function */
@@ -79,6 +69,13 @@ void append_node_list(NodeList *vec, Node *new_node) {
     }
 }
 
+NodeList* prepend_node_list(NodeList *vec, Node *new_node) {
+    NodeList *new_node_list = calloc(1, sizeof(NodeList));
+    new_node_list->tree = new_node;
+    new_node_list->next = vec;
+    return new_node_list;
+}
+
 char *get_ident_name(Node *cur_node) {
     cur_node = cur_node->extend.binode.rhs;
     if(cur_node->type == ND_ASSIGN) {
@@ -91,6 +88,7 @@ void next_token() {
     cur_token = cur_token->next;
 }
 
+
 bool next_is(char *str) {
     if (strlen(str) == cur_token->len &&
         strncmp(cur_token->str, str, cur_token->len) == 0) {
@@ -99,7 +97,15 @@ bool next_is(char *str) {
     }
     return false;
 }
-
+char *consume_ident() {
+    if(cur_token->type == TK_IDENT) {
+        char *tmp = cur_token->str;
+        next_token();
+        return tmp;
+    }
+    printf("should be ident!\n");
+    exit(1);
+}
 bool consume_op(char *str) {
     if (cur_token->type == TK_PUNC &&
         strlen(str) == cur_token->len &&
@@ -112,14 +118,6 @@ bool consume_op(char *str) {
 
 bool consume_keyword(TokenType type) {
     if( cur_token->type == type) {
-        cur_token = cur_token->next;
-        return true;
-    }
-    return false;
-}
-
-bool consume_ident() {
-    if(cur_token->type == TK_IDENT) {
         cur_token = cur_token->next;
         return true;
     }
@@ -184,6 +182,21 @@ Node *new_call_node(Node *callee, NodeList *arg_list) {
     return new_node;
 }
 
+Node *new_function_node(
+    Type *return_type, char *name, NodeList *args, Node *stmt, int memory, SymbolTable* arg_table
+) {
+    Node *new_node = calloc(1, sizeof(Node));
+    new_node->type = ND_FUNC;
+    new_node->extend.functionnode.return_type = return_type;
+    new_node->extend.functionnode.name = name;
+    new_node->extend.functionnode.arg_list = args;
+    new_node->extend.functionnode.stmt = stmt;
+
+    new_node->extend.functionnode.memory = memory;
+    new_node->extend.functionnode.arg_table = arg_table;
+    return new_node;
+}
+
 Node *add_node_block(NodeList *stmts, SymbolTable *symbol_table) {
     Node *new_node = calloc(1, sizeof(Node));
     new_node->type = ND_BLOCK;
@@ -199,15 +212,7 @@ Node *add_node_ident(char *name) {
     return new_node;
 }
 
-Node *add_node_function(Type *return_type, char *name, Node *stmt, int memory) {
-    Node *new_node = calloc(1, sizeof(Node));
-    new_node->type = ND_FUNCTION;
-    new_node->extend.functionnode.name = name;
-    new_node->extend.functionnode.stmt = stmt;
-    new_node->extend.functionnode.memory = memory;
-    new_node->extend.functionnode.return_type = return_type;
-    return new_node;
-}
+
 
 
 /* parse function declaration */
@@ -307,10 +312,9 @@ Node *postfix() {
         NodeList *arg_list = NULL;
         // read arg
         if(!consume_op(")")) {
-            arg_list = calloc(1, sizeof(NodeList));
-            append_node_list(arg_list, assign());
+            arg_list = prepend_node_list(arg_list, assign());
             while(consume_op(",")) {
-                append_node_list(arg_list, assign());
+                arg_list = prepend_node_list(arg_list, assign());
             }
             consume_op(")");
         }
@@ -800,7 +804,7 @@ Node *declaration() {
     while(!consume_op(";")) {
         Node *cur_ident = declarator();
         // add to symbol table
-        add_var_to_symbol_table(cur_ident->extend.name, type);
+        add_var_to_symbol_table(cur_symbol_table, cur_ident->extend.name, type);
         if(consume_op("=")) {
             node = new_binary_node(ND_ASSIGN, cur_ident, initializer());
         }
@@ -969,12 +973,39 @@ function-definition ::=
     declaration-specifiers declarator (declaration)* compound-statement
 */
 Node *function_definition() {
-    // TODO: support declaration-specifier
+    /*
+     simplify the rule to
+     <function-definition> ::=
+       {<declaration-specifier>}* <identifier> '(' <arg-list> ')' <compound-statement>
+     <arg-list> ::=
+        <declaration-specifier> <identifier> {',' <declaration-specifier> <identifier}*
+    */
     Type *return_type = declaration_specifier();
-    Node *node = declarator();
-    if(consume_op("{")) {
-        node = add_node_function(return_type, node->extend.name, compound_stmt(), var_offset);
+    // get function name
+    char *name = consume_ident();
+    // get arg
+    SymbolTable *arg_table = calloc(1, sizeof(SymbolTable));
+    NodeList *args = NULL;
+    consume_op("(");
+    if(!consume_op(")")) {
+        args = calloc(1, sizeof(NodeList));
+        // store the arg reverse
+        Type *cur_type = declaration_specifier();
+        char *name = consume_ident();
+        append_node_list(args, new_decl_node(cur_type, name));
+        add_var_to_symbol_table(arg_table, name, cur_type);
+
+        while(consume_op(",")) {
+            Type *cur_type = declaration_specifier();
+            char *name = consume_ident();
+            append_node_list(args, new_decl_node(cur_type, name));
+            add_var_to_symbol_table(arg_table, name, cur_type);
+        }
+        consume_op(")");
     }
+    // alloc new node
+    Node *node = new_function_node(
+        return_type, name, args, compound_stmt(), var_offset, arg_table);
     return node;
 }
 
@@ -986,6 +1017,8 @@ NodeList *translation_unit() {
     while(cur_token->type != TK_EOF) {
         if(is_func_def()) append_node_list(result, function_definition());
         else append_node_list(result, declaration());
+        // init var offset
+        var_offset = 0;
     }
     return result;
 }

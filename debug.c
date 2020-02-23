@@ -63,7 +63,7 @@ void print_tree(Node *cur_node) {
     }
     switch(cur_node->type) {
         /* function */
-        case ND_FUNCTION: {
+        case ND_FUNC: {
             printf("<function>\n");
             printf("<name>%s</name>\n",cur_node->extend.functionnode.name);
             printf("<stmt>\n");

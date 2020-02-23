@@ -49,6 +49,7 @@ struct Token {
 };
 
 // parser.c
+
 typedef struct Program Program;
 // Node type
 typedef struct UnNode UnNode;
@@ -118,6 +119,14 @@ struct CallNode {
     Node *callee;
 };
 
+struct FunctionNode {
+    Type *return_type;
+    NodeList *arg_list;
+    Node *stmt;
+    SymbolTable *arg_table;
+    int memory;
+    char *name;
+};
 
 struct BlockNode {
     NodeList *stmts;
@@ -126,13 +135,6 @@ struct BlockNode {
 
 
 
-struct FunctionNode {
-    Node *stmt;
-    SymbolTable *symbol_table;
-    int memory;
-    char *name;
-    Type *return_type;
-};
 
 // see node type
 union NodeExtend{
@@ -142,9 +144,8 @@ union NodeExtend{
     LoopNode loopnode;
     DeclNode declnode;
     CallNode callnode;
-
-
     FunctionNode functionnode;
+
 	int val; // ND_INT
     Node *expr; // unary operation (* &), return
     BlockNode blocknode; // compoud stmt
@@ -191,6 +192,8 @@ enum NodeType {
     ND_DECLARE, // declare variable
     /* call node */
     ND_CALL, // function call
+    /* function node */
+    ND_FUNC, // function definition
 
 
 
@@ -201,7 +204,6 @@ enum NodeType {
     ND_IDENT,
     /* special */
     ND_BLOCK, // {...}
-    ND_FUNCTION, // definition of function
 };
 
 struct Node {
@@ -213,6 +215,7 @@ struct NodeList {
     Node *tree;
     NodeList *next;
 };
+
 
 /* type.c */
 struct Type {
