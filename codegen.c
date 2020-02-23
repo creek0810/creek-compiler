@@ -74,7 +74,7 @@ void gen(Node *cur_node) {
             return;
         }
         case ND_CALL: {
-            printf("  call %s\n", cur_node->extend.binode.lhs->extend.name);
+            printf("  call %s\n", cur_node->extend.callnode.callee->extend.name);
             printf("  push rax\n");
             return;
         }
@@ -100,7 +100,7 @@ void gen(Node *cur_node) {
             int cur_loop_idx = LOOP_CNT++;
             gen(cur_node->extend.loopnode.stmt);
             printf("LOOP_START_%d:\n", cur_loop_idx);
-            gen(cur_node->extend.loopnode.condition);
+            gen(cur_node->extend.loopnode.cond);
             printf("  pop rax\n");
             printf("  cmp rax, 0\n");
             printf("  je LOOP_END_%d\n", cur_loop_idx);
@@ -113,12 +113,12 @@ void gen(Node *cur_node) {
             int cur_loop_idx = LOOP_CNT++;
             gen(cur_node->extend.loopnode.init);
             printf("LOOP_START_%d:\n", cur_loop_idx);
-            gen(cur_node->extend.loopnode.condition);
+            gen(cur_node->extend.loopnode.cond);
             printf("  pop rax\n");
             printf("  cmp rax, 0\n");
             printf("  je LOOP_END_%d\n", cur_loop_idx);
             gen(cur_node->extend.loopnode.stmt);
-            gen(cur_node->extend.loopnode.after_check);
+            gen(cur_node->extend.loopnode.after);
             printf("  jmp LOOP_START_%d\n", cur_loop_idx);
             printf("LOOP_END_%d:\n", cur_loop_idx);
             return;
@@ -271,12 +271,12 @@ void gen(Node *cur_node) {
     printf("  push rax\n");
 }
 
-void codegen(NodeList *node_list, SymbolTable *global_table) {
-    // store global symbol table
-    gen_symbol_table = global_table;
-
+void codegen(Program *program) {
+    // load global symbol table
+    gen_symbol_table = program->table;
     printf(".intel_syntax noprefix\n");
     printf(".globl _main\n");
+    NodeList *node_list = program->tree;
     while(node_list) {
         gen(node_list->tree);
         node_list = node_list->next;

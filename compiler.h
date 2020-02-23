@@ -49,11 +49,16 @@ struct Token {
 };
 
 // parser.c
-
-typedef struct TerNode TerNode;
+typedef struct Program Program;
+// Node type
+typedef struct UnNode UnNode;
 typedef struct BiNode BiNode;
-typedef struct BlockNode BlockNode;
+typedef struct TerNode TerNode;
 typedef struct LoopNode LoopNode;
+typedef struct DeclNode DeclNode;
+typedef struct CallNode CallNode;
+
+typedef struct BlockNode BlockNode;
 typedef struct FunctionNode FunctionNode;
 typedef struct Node Node;
 typedef enum NodeType NodeType;
@@ -61,6 +66,11 @@ typedef union NodeExtend NodeExtend;
 typedef struct NodeList NodeList;
 typedef struct Var Var;
 typedef struct SymbolTable SymbolTable;
+
+struct Program {
+    SymbolTable *table;
+    NodeList *tree;
+};
 
 typedef struct Type Type;
 /*
@@ -82,6 +92,10 @@ struct SymbolTable {
     Var *var;
 };
 
+struct UnNode {
+    Node *next;
+};
+
 struct BiNode {
     Node *lhs, *rhs;
 };
@@ -90,17 +104,27 @@ struct TerNode {
     Node *condition, *if_stmt, *else_stmt;
 };
 
+struct LoopNode {
+    Node *init, *cond, *after, *stmt;
+};
+
+struct DeclNode {
+    Type *type;
+    char *name;
+};
+
+struct CallNode {
+    NodeList *arg_list;
+    Node *callee;
+};
+
+
 struct BlockNode {
     NodeList *stmts;
     SymbolTable *symbol_table;
 };
 
-struct LoopNode {
-    Node *init;
-    Node *condition;
-    Node *stmt;
-    Node *after_check;
-};
+
 
 struct FunctionNode {
     Node *stmt;
@@ -110,27 +134,37 @@ struct FunctionNode {
     Type *return_type;
 };
 
+// see node type
 union NodeExtend{
+    UnNode unnode;
+    BiNode binode;
+    TerNode ternode;
+    LoopNode loopnode;
+    DeclNode declnode;
+    CallNode callnode;
+
+
+    FunctionNode functionnode;
 	int val; // ND_INT
     Node *expr; // unary operation (* &), return
-    BiNode binode; // bi operation
-    TerNode ternode; // ter operation(if else)
     BlockNode blocknode; // compoud stmt
-    LoopNode loopnode; // for while
-    FunctionNode functionnode; // for function declare
     char *name; // ident
 };
 
 enum NodeType {
-    /* constant */
-    ND_INT,
-    /* ident */
-    ND_IDENT,
-    /* unary op */
+    /* unary node */
+    ND_POST_INC, // id ++
+    ND_POST_DEC, // id --
+    ND_PRE_INC, // ++ id
+    ND_PRE_DEC, // -- id
+    ND_ADDR, // &
+    ND_DEREF, // *
     ND_BIT_NOT, // ~
     ND_LOGIC_NOT, // !
-    /* bi op */
-    ND_DECLARE, // declare variable
+    ND_RETURN, // return
+    ND_BREAK, // break
+    ND_CONTINUE, // continue
+    /* bi node */
     ND_ADD, // +
     ND_SUB, // -
     ND_MUL, // num * num
@@ -147,20 +181,27 @@ enum NodeType {
     ND_BIT_XOR, // ^
     ND_LOGIC_AND, // &&
     ND_LOGIC_OR, // ||
-    /* ter op*/
+    ND_ASSIGN,
+    /* ter node */
     ND_IF, // cond ? if_stmt : else_stmt | if(...) ... else ...
-    /* special */
-    ND_BLOCK, // {...}
+    /* loop node */
     ND_LOOP, // for, while
     ND_DO_LOOP, // do while
-    ND_FUNCTION, // definition of function
+    /* decl node */
+    ND_DECLARE, // declare variable
+    /* call node */
     ND_CALL, // function call
-    /* jmp */
-    ND_BREAK, // break
-    ND_CONTINUE, // continue
-    ND_RETURN, // return
-    /* assign op node */
-    ND_ASSIGN,
+
+
+
+
+    /* constant */
+    ND_INT,
+    /* ident */
+    ND_IDENT,
+    /* special */
+    ND_BLOCK, // {...}
+    ND_FUNCTION, // definition of function
 };
 
 struct Node {
@@ -184,9 +225,8 @@ Type CHAR_TYPE;
 
 /* main function */
 Token *tokenize(FILE*);
-NodeList *parse(Token*);
-SymbolTable *init_table();
-void codegen(NodeList*, SymbolTable*);
+Program *parse(Token*);
+void codegen(Program*);
 Var *find_var(SymbolTable*,char*);
 int count_symbol_table(SymbolTable*);
 char *get_ident_name(Node*);

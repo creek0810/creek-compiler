@@ -76,11 +76,11 @@ void print_tree(Node *cur_node) {
         case ND_DO_LOOP:
             printf("<do_loop>\n");
             printf("<cond>\n");
-            print_tree(cur_node->extend.loopnode.condition);
+            print_tree(cur_node->extend.loopnode.cond);
             printf("</cond>\n");
             printf("<stmt>\n");
             print_tree(cur_node->extend.loopnode.stmt);
-            print_tree(cur_node->extend.loopnode.after_check);
+            print_tree(cur_node->extend.loopnode.after);
             printf("</stmt>\n");
             printf("</do_loop>\n");
             break;
@@ -91,11 +91,11 @@ void print_tree(Node *cur_node) {
             print_tree(cur_node->extend.loopnode.init);
             printf("</init>\n");
             printf("<cond>\n");
-            print_tree(cur_node->extend.loopnode.condition);
+            print_tree(cur_node->extend.loopnode.cond);
             printf("</cond>\n");
             printf("<stmt>\n");
             print_tree(cur_node->extend.loopnode.stmt);
-            print_tree(cur_node->extend.loopnode.after_check);
+            print_tree(cur_node->extend.loopnode.after);
             printf("</stmt>\n");
 
             printf("</loop>\n");

@@ -1,6 +1,6 @@
 #include "compiler.h"
-SCANNER_DEBUG = false;
-PARSER_DEBUG = false;
+bool SCANNER_DEBUG = false;
+bool PARSER_DEBUG = false;
 
 int main(int argc, char *argv[]) {
     if(argc != 2) {
@@ -16,10 +16,9 @@ int main(int argc, char *argv[]) {
     Token *token_list = tokenize(fp);
     if(SCANNER_DEBUG) print_token(token_list);
     // parser
-    SymbolTable *global_table = init_table();
-    NodeList *function_list = parse(token_list);
-    NodeList *cur_function = function_list;
+    Program *program = parse(token_list);
     if(PARSER_DEBUG) {
+        NodeList *cur_function = program->tree;
         while(cur_function) {
             print_tree(cur_function->tree);
             cur_function = cur_function->next;
@@ -30,5 +29,5 @@ int main(int argc, char *argv[]) {
     // print_symbol_table(symbol_table_head);
 
     /* start gen */
-    codegen(function_list, global_table);
+    codegen(program);
 }

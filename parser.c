@@ -126,65 +126,22 @@ bool consume_ident() {
     return false;
 }
 
-/* check */
-const int op_len = 6;
-const char *op[6] = {"&", "*", "+", "-", "~", "!"};
-int is_unary_operator(){
-    // & * + - ~ !
-    if(cur_token->type == TK_PUNC && cur_token->len == 1) {
-        for(int i=0; i<op_len; i++) {
-            if(strncmp(op[i], cur_token->str, 1) == 0) {
-                return i;
-            }
-        }
-    }
-    // return -1 if not a unary operator
-    return -1;
-}
-
-
-
-const type_keyword_len = 9;
-const char *type_keyword[9] = {
-    // "auto", "register", "static", "extern", "typedef",
-    "void", "char", "short", "int", "long", "float", "double",
-    "signed", "unsigned",
-};
-
-bool is_type() {
-    /*
-                   | <struct-or-union-specifier>
-                   | <enum-specifier>
-                   | <typedef-name>
-    <type-qualifier> ::= const
-                   | volatile
-    */
-   for(int i=0; i<type_keyword_len; i++) {
-       if(strlen(type_keyword[i]) == cur_token->len &&
-          strncmp(type_keyword[i], cur_token->str, cur_token->len) == 0) {
-              return true;
-        }
-   }
-   return false;
-}
-
-
 /* node function */
-Node *add_node_int(int val) {
+Node *new_int_node(int val) {
     Node *new_node = calloc(1, sizeof(Node));
     new_node->type = ND_INT;
     new_node->extend.val = val;
     return new_node;
 }
 
-Node *add_node_unary(NodeType type, Node *expr) {
+Node *new_unary_node(NodeType type, Node *expr) {
     Node *new_node = calloc(1, sizeof(Node));
     new_node->type = type;
-    new_node->extend.expr = expr;
+    new_node->extend.unnode.next = expr;
     return new_node;
 }
 
-Node *add_node_bi_op(NodeType type, Node *lhs, Node *rhs){
+Node *new_binary_node(NodeType type, Node *lhs, Node *rhs){
     Node *new_node = calloc(1, sizeof(Node));
     new_node->type = type;
     new_node->extend.binode.lhs = lhs;
@@ -192,12 +149,38 @@ Node *add_node_bi_op(NodeType type, Node *lhs, Node *rhs){
     return new_node;
 }
 
-Node *add_node_ter_op(Node *condition_expr, Node *if_stmt, Node *else_stmt) {
+Node *new_ternary_node(Node *condition_expr, Node *if_stmt, Node *else_stmt) {
     Node *new_node = calloc(1, sizeof(Node));
     new_node->type = ND_IF;
     new_node->extend.ternode.condition = condition_expr;
     new_node->extend.ternode.if_stmt = if_stmt;
     new_node->extend.ternode.else_stmt = else_stmt;
+    return new_node;
+}
+
+Node *new_loop_node(NodeType type, Node *init, Node *cur_cond, Node *cur_stmt, Node *after) {
+    Node *new_node = calloc(1, sizeof(Node));
+    new_node->type = type;
+    new_node->extend.loopnode.init = init;
+    new_node->extend.loopnode.cond = cur_cond;
+    new_node->extend.loopnode.stmt = cur_stmt;
+    new_node->extend.loopnode.after = after;
+    return new_node;
+}
+
+Node *new_decl_node(Type *type, char *name) {
+    Node *new_node = calloc(1, sizeof(Node));
+    new_node->type = ND_DECLARE;
+    new_node->extend.declnode.name = name;
+    new_node->extend.declnode.type = type;
+    return new_node;
+}
+
+Node *new_call_node(Node *callee, NodeList *arg_list) {
+    Node *new_node = calloc(1, sizeof(Node));
+    new_node->type = ND_CALL;
+    new_node->extend.callnode.arg_list = arg_list;
+    new_node->extend.callnode.callee = callee;
     return new_node;
 }
 
@@ -213,16 +196,6 @@ Node *add_node_ident(char *name) {
     Node *new_node = calloc(1, sizeof(Node));
     new_node->type = ND_IDENT;
     new_node->extend.name = name;
-    return new_node;
-}
-
-Node *add_node_loop(NodeType type, Node *init, Node *cur_cond, Node *cur_stmt, Node *after) {
-    Node *new_node = calloc(1, sizeof(Node));
-    new_node->type = type;
-    new_node->extend.loopnode.init = init;
-    new_node->extend.loopnode.condition = cur_cond;
-    new_node->extend.loopnode.stmt = cur_stmt;
-    new_node->extend.loopnode.after_check = after;
     return new_node;
 }
 
@@ -300,7 +273,7 @@ Node *primary() {
         case TK_FLOAT:
         {
             // support different type
-            cur_node = add_node_int(atoi(cur_token->str));
+            cur_node = new_int_node(atoi(cur_token->str));
             next_token();
             return cur_node;
         }
@@ -315,6 +288,7 @@ Node *primary() {
         consume_op(")");
         return cur_node;
     }
+    // return cur_node;
 }
 
 /*
@@ -323,17 +297,30 @@ Node *primary() {
                        | <postfix-expression> ( {<assignment-expression>}* )
                        | <postfix-expression> . <identifier>
                        | <postfix-expression> -> <identifier>
-                       | <postfix-expression> ++
-                       | <postfix-expression> --
+                       | <postfix-expression> ++ ok
+                       | <postfix-expression> -- ok
 */
 Node *postfix() {
     Node *cur_node = primary();
+    // function call
     if(consume_op("(")) {
-        // suppose no arg
-        // TODO: support arg
-        cur_node = add_node_bi_op(ND_CALL, cur_node, NULL);
-        consume_op(")");
-        return cur_node;
+        NodeList *arg_list = NULL;
+        // read arg
+        if(!consume_op(")")) {
+            arg_list = calloc(1, sizeof(NodeList));
+            append_node_list(arg_list, assign());
+            while(consume_op(",")) {
+                append_node_list(arg_list, assign());
+            }
+            consume_op(")");
+        }
+        return new_call_node(cur_node, arg_list);
+    }
+    if(consume_op("++")) {
+        cur_node = new_unary_node(ND_POST_INC, cur_node);
+    }
+    if(consume_op("--")) {
+        cur_node = new_unary_node(ND_POST_DEC, cur_node);
     }
     return cur_node;
 }
@@ -348,36 +335,37 @@ Node *cast() {
 
 /*
 <unary-expression> ::= <postfix-expression> ok
-                     | ++ <unary-expression>
-                     | -- <unary-expression>
+                     | ++ <unary-expression> ok
+                     | -- <unary-expression> ok
                      | <unary-operator> <cast-expression> ok
                      | sizeof <unary-expression>
                      | sizeof <type-name>
+<unary-operator> ::= & | * | + | - | ~ | !
 */
 Node *unary() {
-    int op_idx;
-    if((op_idx = is_unary_operator()) != -1) {
-        // TODO: * / not finished
-        next_token();
-        Node *node = cast();
-        // 0: '&', 1: '*', 2: '+', 3: '-', 4: '~', 5: '!'
-        switch (op_idx) {
-        case 0:
-        case 1:
-            printf("& * is not implemented\n");
-            break;
-        case 2:
-            return add_node_bi_op(ND_ADD, add_node_int(0), cast());
-        case 3:
-            return add_node_bi_op(ND_SUB, add_node_int(0), cast());
-        case 4:
-            return add_node_unary(ND_BIT_NOT, cast());
-        case 5:
-            return add_node_unary(ND_LOGIC_NOT, cast());
-        default:
-            printf("parse unary error\n");
-            break;
-        }
+    if(consume_op("&")) {
+        return new_unary_node(ND_ADDR, cast());
+    }
+    if(consume_op("*")) {
+        return new_unary_node(ND_DEREF, cast());
+    }
+    if(consume_op("+")) {
+        return new_binary_node(ND_ADD, new_int_node(0), cast());
+    }
+    if(consume_op("-")) {
+        return new_binary_node(ND_SUB, new_int_node(0), cast());
+    }
+    if(consume_op("~")) {
+        return new_unary_node(ND_BIT_NOT, cast());
+    }
+    if(consume_op("!")) {
+        return new_unary_node(ND_LOGIC_NOT, cast());
+    }
+    if(consume_op("++")) {
+        return new_unary_node(ND_PRE_INC, unary());
+    }
+    if(consume_op("--")) {
+        return new_unary_node(ND_PRE_DEC, unary());
     }
     return postfix();
 }
@@ -392,11 +380,11 @@ Node *multiplicative() {
     Node *cur_node = cast();
     while(true) {
         if(consume_op("*")) {
-            cur_node = add_node_bi_op(ND_MUL, cur_node, cast());
+            cur_node = new_binary_node(ND_MUL, cur_node, cast());
         } else if(consume_op("/")) {
-            cur_node = add_node_bi_op(ND_DIV, cur_node, cast());
+            cur_node = new_binary_node(ND_DIV, cur_node, cast());
         } else if(consume_op("%")) {
-            cur_node = add_node_bi_op(ND_MOD, cur_node, cast());
+            cur_node = new_binary_node(ND_MOD, cur_node, cast());
         } else {
             break;
         }
@@ -413,9 +401,9 @@ Node *additive() {
     Node *cur_node = multiplicative();
     while(true) {
         if(consume_op("+")) {
-            cur_node = add_node_bi_op(ND_ADD, cur_node, multiplicative());
+            cur_node = new_binary_node(ND_ADD, cur_node, multiplicative());
         } else if(consume_op("-")){
-            cur_node = add_node_bi_op(ND_SUB, cur_node, multiplicative());
+            cur_node = new_binary_node(ND_SUB, cur_node, multiplicative());
         } else {
             break;
         }
@@ -432,9 +420,9 @@ Node *shift() {
     Node *cur_node = additive();
     while(true) {
         if(consume_op("<<")) {
-            cur_node = add_node_bi_op(ND_LSHIFT, cur_node, additive());
+            cur_node = new_binary_node(ND_LSHIFT, cur_node, additive());
         } else if(consume_op(">>")){
-            cur_node = add_node_bi_op(ND_RSHIFT, cur_node, additive());
+            cur_node = new_binary_node(ND_RSHIFT, cur_node, additive());
         } else {
             break;
         }
@@ -453,13 +441,13 @@ Node *relational() {
     Node *cur_node = shift();
     while(true) {
         if(consume_op("<")) {
-            cur_node = add_node_bi_op(ND_LT, cur_node, shift());
+            cur_node = new_binary_node(ND_LT, cur_node, shift());
         } else if(consume_op(">")){
-            cur_node = add_node_bi_op(ND_LT, shift(), cur_node);
+            cur_node = new_binary_node(ND_LT, shift(), cur_node);
         } else if(consume_op("<=")){
-            cur_node = add_node_bi_op(ND_LE, cur_node, shift());
+            cur_node = new_binary_node(ND_LE, cur_node, shift());
         } else if(consume_op(">=")){
-            cur_node = add_node_bi_op(ND_LE, shift(), cur_node);
+            cur_node = new_binary_node(ND_LE, shift(), cur_node);
         } else {
             break;
         }
@@ -476,9 +464,9 @@ Node *equality() {
     Node *cur_node = relational();
     while(true) {
         if(consume_op("==")) {
-            cur_node = add_node_bi_op(ND_EQ, cur_node, relational());
+            cur_node = new_binary_node(ND_EQ, cur_node, relational());
         } else if(consume_op("!=")){
-            cur_node = add_node_bi_op(ND_NE, cur_node, relational());
+            cur_node = new_binary_node(ND_NE, cur_node, relational());
         } else {
             break;
         }
@@ -493,7 +481,7 @@ Node *equality() {
 Node *and_expr() {
     Node *cur_node = equality();
     while(consume_op("&")) {
-        cur_node = add_node_bi_op(ND_BIT_AND, cur_node, equality());
+        cur_node = new_binary_node(ND_BIT_AND, cur_node, equality());
     }
     return cur_node;
 }
@@ -505,7 +493,7 @@ Node *and_expr() {
 Node *exclusive_or() {
     Node *cur_node = and_expr();
     while(consume_op("^")) {
-        cur_node = add_node_bi_op(ND_BIT_XOR, cur_node, and_expr());
+        cur_node = new_binary_node(ND_BIT_XOR, cur_node, and_expr());
     }
     return cur_node;
 }
@@ -517,7 +505,7 @@ Node *exclusive_or() {
 Node *inclusive_or() {
     Node *cur_node = exclusive_or();
     while(consume_op("|")) {
-        cur_node = add_node_bi_op(ND_BIT_OR, cur_node, exclusive_or());
+        cur_node = new_binary_node(ND_BIT_OR, cur_node, exclusive_or());
     }
     return cur_node;
 }
@@ -529,7 +517,7 @@ Node *inclusive_or() {
 Node *logic_and() {
     Node *cur_node = inclusive_or();
     while(consume_op("&&")) {
-        cur_node = add_node_bi_op(ND_LOGIC_AND, cur_node, inclusive_or());
+        cur_node = new_binary_node(ND_LOGIC_AND, cur_node, inclusive_or());
     }
     return cur_node;
 }
@@ -541,7 +529,7 @@ Node *logic_and() {
 Node *logic_or() {
     Node *cur_node = logic_and();
     while(consume_op("||")) {
-        cur_node = add_node_bi_op(ND_LOGIC_OR, cur_node, logic_and());
+        cur_node = new_binary_node(ND_LOGIC_OR, cur_node, logic_and());
     }
     return cur_node;
 }
@@ -556,7 +544,7 @@ Node *condition() {
         Node *if_stmt = expr();
         consume_op(":");
         Node *else_stmt = condition();
-        cur_node = add_node_ter_op(cur_node, if_stmt, else_stmt);
+        cur_node = new_ternary_node(cur_node, if_stmt, else_stmt);
     }
     return cur_node;
 }
@@ -568,57 +556,57 @@ Node *condition() {
 Node *assign() {
     Node *cur_node = condition();
     if(consume_op("=")) {
-        cur_node = add_node_bi_op(ND_ASSIGN, cur_node, assign());
+        cur_node = new_binary_node(ND_ASSIGN, cur_node, assign());
         return cur_node;
     }
     if(consume_op("*=")) {
-        Node *calc = add_node_bi_op(ND_MUL, cur_node, assign());
-        cur_node = add_node_bi_op(ND_ASSIGN, cur_node, calc);
+        Node *calc = new_binary_node(ND_MUL, cur_node, assign());
+        cur_node = new_binary_node(ND_ASSIGN, cur_node, calc);
         return cur_node;
     }
     if(consume_op("/=")) {
-        Node *calc = add_node_bi_op(ND_DIV, cur_node, assign());
-        cur_node = add_node_bi_op(ND_ASSIGN, cur_node, calc);
+        Node *calc = new_binary_node(ND_DIV, cur_node, assign());
+        cur_node = new_binary_node(ND_ASSIGN, cur_node, calc);
         return cur_node;
     }
     if(consume_op("%=")) {
-        Node *calc = add_node_bi_op(ND_MOD, cur_node, assign());
-        cur_node = add_node_bi_op(ND_ASSIGN, cur_node, calc);
+        Node *calc = new_binary_node(ND_MOD, cur_node, assign());
+        cur_node = new_binary_node(ND_ASSIGN, cur_node, calc);
         return cur_node;
     }
     if(consume_op("+=")) {
-        Node *calc = add_node_bi_op(ND_ADD, cur_node, assign());
-        cur_node = add_node_bi_op(ND_ASSIGN, cur_node, calc);
+        Node *calc = new_binary_node(ND_ADD, cur_node, assign());
+        cur_node = new_binary_node(ND_ASSIGN, cur_node, calc);
         return cur_node;
     }
     if(consume_op("-=")) {
-        Node *calc = add_node_bi_op(ND_SUB, cur_node, assign());
-        cur_node = add_node_bi_op(ND_ASSIGN, cur_node, calc);
+        Node *calc = new_binary_node(ND_SUB, cur_node, assign());
+        cur_node = new_binary_node(ND_ASSIGN, cur_node, calc);
         return cur_node;
     }
     if(consume_op("<<=")) {
-        Node *calc = add_node_bi_op(ND_LSHIFT, cur_node, assign());
-        cur_node = add_node_bi_op(ND_ASSIGN, cur_node, calc);
+        Node *calc = new_binary_node(ND_LSHIFT, cur_node, assign());
+        cur_node = new_binary_node(ND_ASSIGN, cur_node, calc);
         return cur_node;
     }
     if(consume_op(">>=")) {
-        Node *calc = add_node_bi_op(ND_RSHIFT, cur_node, assign());
-        cur_node = add_node_bi_op(ND_ASSIGN, cur_node, calc);
+        Node *calc = new_binary_node(ND_RSHIFT, cur_node, assign());
+        cur_node = new_binary_node(ND_ASSIGN, cur_node, calc);
         return cur_node;
     }
     if(consume_op("&=")) {
-        Node *calc = add_node_bi_op(ND_BIT_AND, cur_node, assign());
-        cur_node = add_node_bi_op(ND_ASSIGN, cur_node, calc);
+        Node *calc = new_binary_node(ND_BIT_AND, cur_node, assign());
+        cur_node = new_binary_node(ND_ASSIGN, cur_node, calc);
         return cur_node;
     }
     if(consume_op("^=")) {
-        Node *calc = add_node_bi_op(ND_BIT_XOR, cur_node, assign());
-        cur_node = add_node_bi_op(ND_ASSIGN, cur_node, calc);
+        Node *calc = new_binary_node(ND_BIT_XOR, cur_node, assign());
+        cur_node = new_binary_node(ND_ASSIGN, cur_node, calc);
         return cur_node;
     }
     if(consume_op("|=")) {
-        Node *calc = add_node_bi_op(ND_BIT_OR, cur_node, assign());
-        cur_node = add_node_bi_op(ND_ASSIGN, cur_node, calc);
+        Node *calc = new_binary_node(ND_BIT_OR, cur_node, assign());
+        cur_node = new_binary_node(ND_ASSIGN, cur_node, calc);
         return cur_node;
     }
     return cur_node;
@@ -736,7 +724,7 @@ Type *declaration_specifier() {
     // TODO: deal with long(it may be long long)
     long long type_bit_set = 0;
     while(true) {
-        NodeType cur_type = cur_token->type;
+        TokenType cur_type = cur_token->type;
         bool is_type = true;
         switch(cur_type) {
             case TK_KW_VOID:
@@ -814,7 +802,7 @@ Node *declaration() {
         // add to symbol table
         add_var_to_symbol_table(cur_ident->extend.name, type);
         if(consume_op("=")) {
-            node = add_node_bi_op(ND_ASSIGN, cur_ident, initializer());
+            node = new_binary_node(ND_ASSIGN, cur_ident, initializer());
         }
     }
     return node;
@@ -865,7 +853,7 @@ Node *iteration_stmt() {
         Node *cur_condition = expr();
         consume_op(")");
         Node *cur_stmt = stmt();
-        return add_node_loop(ND_LOOP, NULL, cur_condition, cur_stmt, NULL);
+        return new_loop_node(ND_LOOP, NULL, cur_condition, cur_stmt, NULL);
     }
     if(consume_keyword(TK_KW_FOR)) {
         Node *init = NULL, *cur_cond = NULL, *after = NULL;
@@ -884,7 +872,7 @@ Node *iteration_stmt() {
             after = expr();
             consume_op(")");
         }
-        return add_node_loop(ND_LOOP, init, cur_cond, stmt(), after);
+        return new_loop_node(ND_LOOP, init, cur_cond, stmt(), after);
     }
     if(consume_keyword(TK_KW_DO)) {
         Node *cur_stmt = stmt();
@@ -893,7 +881,7 @@ Node *iteration_stmt() {
         Node *cur_cond = expr();
         consume_op(")");
         consume_op(";");
-        return add_node_loop(ND_DO_LOOP, NULL, cur_cond, cur_stmt, NULL);
+        return new_loop_node(ND_DO_LOOP, NULL, cur_cond, cur_stmt, NULL);
     }
 }
 
@@ -908,15 +896,15 @@ Node *jump_stmt() {
         consume_op(";");
     } else if (consume_keyword(TK_KW_CONTINUE)) {
         consume_op(";");
-        return add_node_unary(ND_CONTINUE, NULL);
+        return new_unary_node(ND_CONTINUE, NULL);
     } else if(consume_keyword(TK_KW_BREAK)) {
         consume_op(";");
-        return add_node_unary(ND_BREAK, NULL);
+        return new_unary_node(ND_BREAK, NULL);
     } else if(consume_keyword(TK_KW_RETURN)) {
         if(consume_op(";")) {
-            return add_node_unary(ND_RETURN, NULL);
+            return new_unary_node(ND_RETURN, NULL);
         }
-        Node *cur_node = add_node_unary(ND_RETURN, expr());
+        Node *cur_node = new_unary_node(ND_RETURN, expr());
         consume_op(";");
         return cur_node;
     }
@@ -933,7 +921,7 @@ Node *selection_stmt() {
         consume_op(")");
         Node *if_true = stmt();
         Node *if_false = consume_keyword(TK_KW_ELSE) ? stmt() : NULL;
-        return add_node_ter_op(cond, if_true, if_false);
+        return new_ternary_node(cond, if_true, if_false);
     }
     if(consume_keyword(TK_KW_SWITCH)) {
         // TODO: support switch
@@ -1001,12 +989,13 @@ NodeList *translation_unit() {
     }
     return result;
 }
-SymbolTable *init_table() {
-    return push_symbol_table();
-}
-NodeList *parse(Token *token_list) {
+
+Program *parse(Token *token_list) {
     // init token stream
     cur_token = token_list;
-    // start parse by top level
-    return translation_unit();
+    Program *program = calloc(1, sizeof(Program));
+    // establish symbol table and parse
+    program->table = push_symbol_table();
+    program->tree = translation_unit();
+    return program;
 }
