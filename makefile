@@ -1,9 +1,12 @@
-OBJS = type.o codegen.o tokenizer.o parser.o compiler.o debug.o
+SRC_DIR = src/
+LIB_DIR = src/lib
+
+SRC = $(wildcard $(SRC_DIR)*.c)
+OBJS = $(SRC:%.c=%.o)
+
 compiler: $(OBJS)
 	cc -o compiler $(OBJS)
 
-$(OBJS): compiler.h
-
 .PHONY: clean
 clean:
-	rm -f *.o
+	rm -f $(SRC_DIR)*.o

@@ -1,4 +1,5 @@
 #include "compiler.h"
+
 bool SCANNER_DEBUG = false;
 bool PARSER_DEBUG = false;
 
@@ -13,7 +14,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     // scanner
-    Token *token_list = tokenize(fp);
+    Token *token_list = scan(fp);
     if(SCANNER_DEBUG) print_token(token_list);
     // parser
     Program *program = parse(token_list);

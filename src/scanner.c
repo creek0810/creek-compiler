@@ -1,4 +1,10 @@
-#include "compiler.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include <stdbool.h>
+#include <string.h>
+#include "token.h"
+
 Token *token_list = NULL;
 Token *cur_token = NULL;
 
@@ -194,7 +200,7 @@ int string_literal(char *str, int base_loc, int str_len) {
     return loc;
 }
 
-Token *tokenize(FILE *fp) {
+Token *scan(FILE *fp) {
     // the max len of a line should not exceed 5000!
     char str[5000] = {0};
     while(fgets(str, 5000, fp) != NULL) {
