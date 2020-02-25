@@ -4,6 +4,7 @@
 #include <string.h>
 #include "node.h"
 #include "token.h"
+#include "symbolTable.h"
 
 /* main function */
 Token *scan(FILE*);

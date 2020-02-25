@@ -5,56 +5,6 @@ SymbolTable *cur_symbol_table = NULL;
 NodeList *function_list = NULL;
 NodeList *cur_function_node = NULL;
 
-int var_offset = 0;
-
-/*
-    cur_symbol_table
-          |
-          V
-        scope 1 -> scope 2 -> function -> global
-*/
-/* symbol table function */
-SymbolTable *push_symbol_table() {
-    SymbolTable *new_table = calloc(1, sizeof(SymbolTable));
-    new_table->prev = cur_symbol_table;
-    cur_symbol_table = new_table;
-    return new_table;
-}
-
-void pop_symbol_table() {
-    cur_symbol_table = cur_symbol_table->prev;
-}
-
-Var *find_var(SymbolTable *symbol_table, char *name) {
-    if(symbol_table == NULL) {
-        return NULL;
-    }
-    while(symbol_table) {
-        Var *cur_var = symbol_table->var;
-        while(cur_var) {
-            int name_len = strlen(cur_var->name);
-            if(name_len == strlen(name) && strncmp(cur_var->name, name, name_len) == 0) {
-                return cur_var;
-            }
-            cur_var = cur_var->next;
-        }
-        symbol_table = symbol_table->prev;
-    }
-    return NULL;
-}
-
-void add_var_to_symbol_table(SymbolTable* tar_table, char *name, Type *cur_type) {
-    Var *new_var = calloc(1, sizeof(Var));
-    new_var->name = name;
-    new_var->type = cur_type;
-    int padding = (new_var->offset) % cur_type->aligned;
-    new_var->offset = var_offset + padding + cur_type->size;
-    var_offset += new_var->offset;
-
-    new_var->next = tar_table->var;
-    tar_table->var = new_var;
-}
-
 /* help function */
 void append_node_list(NodeList *vec, Node *new_node) {
     if(vec->tree == NULL) {
@@ -731,7 +681,9 @@ Node *compound_stmt() {
     NodeList *cur_node;
 
     // init symbol_table;
-    SymbolTable *symbol_table = push_symbol_table();
+    SymbolTable *symbol_table = new_symbol_table();
+    push_local_table(symbol_table);
+
     while(!consume_op("}")) {
         cur_symbol_table = symbol_table;
         Node *decl_stmt = NULL;
@@ -752,7 +704,7 @@ Node *compound_stmt() {
         }
     }
     Node *block_node = add_node_block(node_list, symbol_table);
-    pop_symbol_table();
+    pop_local_table();
     return block_node;
 }
 
@@ -915,7 +867,7 @@ Node *function_definition() {
     }
     // alloc new node
     Node *node = new_function_node(
-        return_type, name, args, compound_stmt(), var_offset, arg_table);
+        return_type, name, args, compound_stmt(), get_var_offset(), arg_table);
     return node;
 }
 
@@ -925,10 +877,9 @@ Node *function_definition() {
 NodeList *translation_unit() {
     NodeList *result = calloc(1, sizeof(NodeList));
     while(cur_token->type != TK_EOF) {
+        init_var_offset();
         if(is_func_def()) append_node_list(result, function_definition());
         else append_node_list(result, declaration());
-        // init var offset
-        var_offset = 0;
     }
     return result;
 }
@@ -937,8 +888,8 @@ Program *parse(Token *token_list) {
     // init token stream
     cur_token = token_list;
     Program *program = calloc(1, sizeof(Program));
-    // establish symbol table and parse
-    program->table = push_symbol_table();
+    // establish global symbol table and parse
+    program->table = new_symbol_table();
     program->tree = translation_unit();
     return program;
 }

@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include "node.h"
 
-
 Node *new_int_node(int val) {
     Node *new_node = calloc(1, sizeof(Node));
     new_node->type = ND_INT;
@@ -24,10 +23,10 @@ Node *new_binary_node(NodeType type, Node *lhs, Node *rhs){
     return new_node;
 }
 
-Node *new_ternary_node(Node *condition_expr, Node *if_stmt, Node *else_stmt) {
+Node *new_ternary_node(Node *cond, Node *if_stmt, Node *else_stmt) {
     Node *new_node = calloc(1, sizeof(Node));
     new_node->type = ND_IF;
-    new_node->extend.ternode.condition = condition_expr;
+    new_node->extend.ternode.cond = cond;
     new_node->extend.ternode.if_stmt = if_stmt;
     new_node->extend.ternode.else_stmt = else_stmt;
     return new_node;

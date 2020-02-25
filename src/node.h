@@ -2,6 +2,7 @@
 #define NODE_H
 
 #include "type.h"
+#include "symbolTable.h"
 
 /* top level */
 typedef struct Program Program;
@@ -19,9 +20,6 @@ typedef struct CallNode CallNode;
 typedef struct BlockNode BlockNode;
 typedef struct FunctionNode FunctionNode;
 typedef struct NodeList NodeList;
-/* symbol table */
-typedef struct Var Var;
-typedef struct SymbolTable SymbolTable;
 /* node type enum */
 enum NodeType {
     /* unary node */
@@ -88,17 +86,7 @@ typedef struct Type Type;
         scope 1 -> scope 2 -> function -> global
 */
 
-struct Var {
-    Var *next;
-    char *name;
-    int offset;
-    Type *type;
-};
 
-struct SymbolTable {
-    SymbolTable *prev;
-    Var *var;
-};
 
 struct UnNode {
     Node *next;
@@ -109,7 +97,7 @@ struct BiNode {
 };
 
 struct TerNode {
-    Node *condition, *if_stmt, *else_stmt;
+    Node *cond, *if_stmt, *else_stmt;
 };
 
 struct LoopNode {

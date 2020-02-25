@@ -229,7 +229,7 @@ void print_tree(Node *cur_node) {
         case ND_IF:
             printf("<if>\n");
             printf("<condition>\n");
-            print_tree(cur_node->extend.ternode.condition);
+            print_tree(cur_node->extend.ternode.cond);
             printf("</condition>\n");
             printf("<if_true>\n");
             print_tree(cur_node->extend.ternode.if_stmt);
