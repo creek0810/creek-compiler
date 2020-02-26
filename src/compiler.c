@@ -1,10 +1,8 @@
 #include "compiler.h"
-
-bool SCANNER_DEBUG = false;
-bool PARSER_DEBUG = false;
+#include <string.h>
 
 int main(int argc, char *argv[]) {
-    if(argc != 2) {
+    if(argc < 2) {
         printf("參數錯誤\n");
         return 1;
     }
@@ -13,22 +11,21 @@ int main(int argc, char *argv[]) {
         printf("檔案不存在，或無法開啟");
         return 1;
     }
-    // scanner
-    Token *token_list = scan(fp);
-    if(SCANNER_DEBUG) print_token(token_list);
-    // parser
-    Program *program = parse(token_list);
-    if(PARSER_DEBUG) {
-        NodeList *cur_function = program->tree;
-        while(cur_function) {
-            print_tree(cur_function->tree);
-            cur_function = cur_function->next;
+    if(argc == 3 && strlen(argv[2]) == 4 && strncmp(argv[2], "scan", 4) == 0) {
+        Token *token_list = scan(fp);
+        print_token(token_list);
+    } else {
+        Token *token_list = scan(fp);
+        Program *program = parse(token_list);
+        codegen(program);
+        /*
+        if(PARSER_DEBUG) {
+            NodeList *cur_function = program->tree;
+            while(cur_function) {
+                print_tree(cur_function->tree);
+                cur_function = cur_function->next;
+            }
         }
+        */
     }
-    /* debug parser */
-    // printf("-------\n", symbol_table_head);
-    // print_symbol_table(symbol_table_head);
-
-    /* start gen */
-    codegen(program);
 }

@@ -3,4 +3,4 @@ test.c
 test.s
 test
 __pycache__/
-*.out
+compiler

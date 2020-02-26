@@ -1,0 +1,24 @@
+int: 123456789
+int: 01234567
+int: 89
+int: 0xabcdefAbcdef
+int: 0X9876543210
+int: 1234ul
+int: 1234uL
+int: 1234Ul
+int: 1234UL
+int: 1234ull
+int: 1234uLL
+int: 1234Ull
+int: 1234ULL
+int: 1234l
+int: 1234L
+int: 1234lu
+int: 1234Lu
+int: 1234lU
+int: 1234LU
+int: 1234llu
+int: 1234LLu
+int: 1234llU
+int: 1234LLU
+eof

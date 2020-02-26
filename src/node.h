@@ -31,6 +31,7 @@ enum NodeType {
     ND_DEREF, // *
     ND_BIT_NOT, // ~
     ND_LOGIC_NOT, // !
+    ND_GOTO, // goto
     ND_RETURN, // return
     ND_BREAK, // break
     ND_CONTINUE, // continue

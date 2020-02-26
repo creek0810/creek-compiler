@@ -5,9 +5,17 @@
 #include <string.h>
 #include "token.h"
 
+/*
+lexical elements:
+1. keyword
+2. identifier
+3. constant
+4. string-literal
+5. punctuator
+*/
+
 Token *token_list = NULL;
 Token *cur_token = NULL;
-
 
 /* warning: op need to be sorted by letters */
 /* check more letters op first */
@@ -84,7 +92,7 @@ const CharTypeMap keywords[44] = {
     {"_Imaginary", TK_KW_UNDEFINED},
     {"_Noreturn", TK_KW_UNDEFINED},
     {"_Static_assert", TK_KW_UNDEFINED},
-    {"_Thread_loca", TK_KW_UNDEFINED},
+    {"_Thread_local", TK_KW_UNDEFINED},
 };
 
 
@@ -95,7 +103,7 @@ int startswith(char *str, char *tar) {
     int str_len = strlen(str);
     int tar_len = strlen(tar);
     if(str_len >= tar_len) {
-        return memcmp(str, tar, sizeof(char) * tar_len) == 0;
+        return strncmp(str, tar, tar_len) == 0;
     }
     return 0;
 }
@@ -123,8 +131,58 @@ bool is_string(char *str) {
            startswith(str, "U\"") || startswith(str, "L\"") || startswith(str, "\"");
 }
 
-/* token type function */
+bool is_char(char *str) {
+    return startswith(str, "u\'") || startswith(str, "U\'") ||
+           startswith(str, "L\'") || startswith(str, "\'");
+}
 
+int read_escape(char str[], int cur_loc) {
+    /*
+        TODO: support
+        \x[0-9a-fA-F]*
+        \[0-7]
+           ^ 1-3
+    */
+    const char basic_escape[11] = {
+        "\\\'", "\\\"", "\\?", "\\\\",
+        "\\a", "\\b", "\\f", "\\u", "\\r",
+        "\\t", "\\v"
+    };
+    for(int i=0; i<11; i++) {
+        if(startswith(str, &basic_escape[i])) {
+            return cur_loc + 2;
+        }
+    }
+    return cur_loc;
+}
+
+int read_int_suffix(char str[], int cur_loc) {
+    if(str[cur_loc] == 'u' || str[cur_loc] == 'U') {
+        cur_loc ++;
+        // warning: must check ll LL first
+        if(startswith(str + cur_loc, "ll") || startswith(str + cur_loc, "LL")) {
+            cur_loc += 2;
+        } else if(str[cur_loc] == 'l' || str[cur_loc] == 'L') {
+            cur_loc ++;
+        }
+    } else if(startswith(str + cur_loc, "ll") || startswith(str + cur_loc, "LL")) {
+        cur_loc += 2;
+        if(str[cur_loc] == 'u' || str[cur_loc] == 'U')
+            cur_loc ++;
+    } else if(str[cur_loc] == 'l' || str[cur_loc] == 'L') {
+        cur_loc ++;
+        if(str[cur_loc] == 'u' || str[cur_loc] == 'U')
+            cur_loc ++;
+    }
+    return cur_loc;
+}
+
+bool is_hex(char ch) {
+    return (ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') ||
+            (ch >='A' && ch <= 'F');
+}
+
+/* token type function */
 int punc(char *str, int base_loc, int str_len) {
     int rest_len = str_len - base_loc;
     for(int i=0; i<punc_cnt; i++) {
@@ -164,20 +222,47 @@ int ident(char *str, int base_loc, int str_len) {
 }
 
 int constant(char *str, int base_loc, int str_len) {
-    int loc = base_loc + 1;
-    bool is_float = false;
-    while(loc < str_len &&
-          (isdigit(str[loc]) || str[loc] == '.')) {
-        if(str[loc] == '.') {
-            is_float = true;
+    // TODO: support float
+    int loc = base_loc;
+    if(startswith(str + base_loc, "0x") || startswith(str + base_loc, "0X")) {
+        loc += 2;
+        // hex int
+        while(is_hex(str[loc])) loc ++;
+    } else if(str[loc] == '0') {
+        // oct int
+        while(str[loc] >= '0' && str[loc] <= '7') loc ++;
+    } else {
+        // dec int
+        while(isdigit(str[loc])) loc ++;
+    }
+    // read int suffix
+    loc = read_int_suffix(str, loc);
+    add_token(str + base_loc, loc - base_loc, TK_INT);
+    return loc;
+}
+
+int char_literal(char *str, int base_loc, int str_len) {
+    // TODO: handle bad token of escape
+    int loc = base_loc;
+    bool has_found_start = false;
+    while(loc < str_len) {
+        // deal with escape
+        if(str[loc] == '\\') {
+            loc = read_escape(str, loc);
+            continue;
+        }
+        // break condition
+        if(has_found_start && str[loc] == '\'') {
+            loc ++;
+            break;
+        }
+        // init start by finding first '
+        if(!has_found_start && str[loc] == '\'') {
+            has_found_start = true;
         }
         loc++;
     }
-    if(is_float) {
-        add_token(str + base_loc, loc - base_loc, TK_FLOAT);
-    } else {
-        add_token(str + base_loc, loc - base_loc, TK_INT);
-    }
+    add_token(str + base_loc, loc - base_loc, TK_CHAR);
     return loc;
 }
 
@@ -185,14 +270,19 @@ int string_literal(char *str, int base_loc, int str_len) {
     int loc = base_loc;
     bool has_found_start = false;
     while(loc < str_len) {
-        // check if not a escape "
-        if(has_found_start && str[loc] == '\"' && str[loc - 1] != '\\') {
+        // deal with escape
+        if(str[loc] == '\\') {
+            loc = read_escape(str, loc);
+            continue;
+        }
+        // break condition
+        if(has_found_start && str[loc] == '\"') {
             loc ++;
             break;
         }
+        // init start by finding first '
         if(!has_found_start && str[loc] == '\"') {
             has_found_start = true;
-            loc++;
         }
         loc++;
     }
@@ -218,6 +308,18 @@ Token *scan(FILE *fp) {
                 break;
             }
 
+            // char literal
+            if(is_char(str + cur_loc)) {
+                cur_loc = char_literal(str, cur_loc, str_len);
+                continue;
+            }
+
+            // constant
+            if(isdigit(str[cur_loc])) {
+                cur_loc = constant(str, cur_loc, str_len);
+                continue;
+            }
+
             /* warning: need to check before ident
                 or u8" will be tokenized as a ident.
             */
@@ -228,14 +330,9 @@ Token *scan(FILE *fp) {
             }
 
             // identifier or keyword
+            // TODO: support universal-character-name
             if(isalpha(str[cur_loc]) || str[cur_loc] == '_') {
                 cur_loc = ident(str, cur_loc, str_len);
-                continue;
-            }
-
-            // constant
-            if(isdigit(str[cur_loc])) {
-                cur_loc = constant(str, cur_loc, str_len);
                 continue;
             }
 

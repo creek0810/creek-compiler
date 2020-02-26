@@ -14,6 +14,9 @@ void print_cur_token(Token *it) {
             case TK_STRING:
                 printf("string literal: ");
                 break;
+            case TK_CHAR:
+                printf("char literal: ");
+                break;
             case TK_IDENT:
                 printf("ident: ");
                 break;
@@ -24,7 +27,7 @@ void print_cur_token(Token *it) {
                 printf("keyword: ");
                 break;
         }
-        printf("%s %d\n", it->str, it->len);
+        printf("%s\n", it->str);
 }
 
 void print_token(Token *token_list) {

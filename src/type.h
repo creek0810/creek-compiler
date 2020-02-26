@@ -8,7 +8,11 @@ struct Type {
     Type *point_to;
 };
 
+/* primitive type */
 Type INT_TYPE;
 Type CHAR_TYPE;
+
+/* function declaration */
+Type *point_to(Type*);
 
 #endif

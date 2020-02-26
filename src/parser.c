@@ -47,6 +47,7 @@ bool next_is(char *str) {
     }
     return false;
 }
+
 char *consume_ident() {
     if(cur_token->type == TK_IDENT) {
         char *tmp = cur_token->str;
@@ -56,6 +57,7 @@ char *consume_ident() {
     printf("should be ident!\n");
     exit(1);
 }
+
 bool consume_op(char *str) {
     if (cur_token->type == TK_PUNC &&
         strlen(str) == cur_token->len &&
@@ -109,8 +111,7 @@ Node *postfix();
 Node *primary();
 
 
-/* try to parse function definition */
-
+/* backtrack function */
 bool is_func_def() {
     bool flag = true;
     Token *copy_token = cur_token;
@@ -153,7 +154,6 @@ Node *primary() {
         consume_op(")");
         return cur_node;
     }
-    // return cur_node;
 }
 
 /*
@@ -559,6 +559,7 @@ Node *direct_declarator() {
 }
 
 /*
+warning: we will also parse the pointer part at this stage
 <declaration-specifier> ::= <storage-class-specifier>
                           | <type-specifier>
                           | <type-qualifier>
@@ -583,6 +584,7 @@ Node *direct_declarator() {
                    | volatile
 */
 Type *declaration_specifier() {
+    // get basic type
     // void(1) char(2) short(4) int(8) float(16)
     // double(32) signed(64) unsigned(128)
     // TODO: deal with long(it may be long long)
@@ -622,17 +624,24 @@ Type *declaration_specifier() {
         if(is_type) next_token();
         else break;
     }
+    Type *cur_type;
     switch(type_bit_set) {
         case 2:
-            return &CHAR_TYPE;
+            cur_type = &CHAR_TYPE;
+            break;
         case 8:
         case 64:
         case 72:
-            return &INT_TYPE;
+            cur_type = &INT_TYPE;
+            break;
         default:
             // printf("unknown type %lld\n", type_bit_set);
             return NULL;
     }
+    while(consume_op("*")) {
+        cur_type = point_to(cur_type);
+    }
+    return cur_type;
 }
 
 /*
@@ -644,7 +653,11 @@ Node *initializer() {
     return assign();
 }
 
-/* <declarator> ::= {<pointer>}? <direct-declarator> */
+/*
+warning: we parse pointer at type-specifier parse stage,
+    because all declarator below to type-specifier
+<declarator> ::= {<pointer>}? <direct-declarator>
+*/
 Node *declarator() {
     return direct_declarator();
 }
@@ -752,14 +765,16 @@ Node *iteration_stmt() {
 }
 
 
-/* <jump-statement> ::= goto <identifier> ;
+/* <jump-statement> ::= goto <identifier> ; ok
                    | continue ; ok ok
                    | break ; ok ok
                    | return {<expression>}? ; ok ok
 */
 Node *jump_stmt() {
     if(consume_keyword(TK_KW_GOTO)) {
+        char *name = consume_ident();
         consume_op(";");
+        return new_unary_node(ND_GOTO, add_node_ident(name));
     } else if (consume_keyword(TK_KW_CONTINUE)) {
         consume_op(";");
         return new_unary_node(ND_CONTINUE, NULL);
